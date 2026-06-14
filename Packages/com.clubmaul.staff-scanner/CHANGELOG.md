@@ -2,6 +2,20 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-14
+
+### Added
+
+- **Plugins**: drag-in `StaffScannerPlugin` assets with an editable contact list — each contact has a name, a collision tag, and a Toggle/Button control type. On build, each plugin's contacts generate world-locked contact senders and menu toggles under their own menu sub-folder. Beast role only.
+- Bundled **Suburbia** plugin (contacts `Suburbia/Flicker` and `Suburbia/Sound`).
+- Inspector **Add Plugin** dropdown that discovers plugin assets across the project and packages (so package-shipped plugins don't have to be hunted down), plus a **Create New Plugin** option.
+- Configurable **Menu Path** controlling where the Staff Scanner toggles are written in the avatar menu.
+- Staff Scanner menu folder icon (Club Maul flames), applied via VRCFury's Override Menu Icon feature.
+
+### Changed
+
+- Renamed the **World Features** section to **Universal** and removed the **Unique** toggle.
+
 ## [1.1.0] - 2026-06-14
 
 ### Added
