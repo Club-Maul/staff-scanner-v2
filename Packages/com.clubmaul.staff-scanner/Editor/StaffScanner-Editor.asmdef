@@ -1,0 +1,32 @@
+{
+    "name": "StaffScanner-Editor",
+    "rootNamespace": "",
+    "references": [
+        "StaffScanner-Runtime",
+        "VRCFury",
+        "com.vrcfury.api",
+        "VRC.SDKBase.Editor",
+        "VRC.SDKBase.Editor.BuildPipeline",
+        "VRC.SDK3A.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "VRCSDKBase.dll",
+        "VRCSDKBase-Editor.dll",
+        "VRCSDK3A.dll",
+        "VRCSDK3A-Editor.dll",
+        "VRCCore-Editor.dll",
+        "VRC.Dynamics.dll",
+        "VRC.SDK3.Dynamics.Contact.dll",
+        "VRC.SDK3.Dynamics.Constraint.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

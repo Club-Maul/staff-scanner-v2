@@ -1,0 +1,25 @@
+{
+  "name": "com.clubmaul.staff-scanner",
+  "displayName": "Staff Scanner V2",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "description": "Staff Scanner V2 for Club Maul. Required for all Beasts and recommended for Trial Beasts. Drop the prefab onto your avatar, pick your role, and on build it generates a decimated, see-through-walls scanner mesh plus the contact senders/receivers and in-game menu toggles the Club Maul world reacts to.",
+  "author": {
+    "name": "Club Maul",
+    "url": "https://github.com/Club-Maul"
+  },
+  "license": "MIT",
+  "licensesUrl": "https://github.com/Club-Maul/staff-scanner-v2/blob/main/LICENSE",
+  "changelogUrl": "https://github.com/Club-Maul/staff-scanner-v2/blob/main/Packages/com.clubmaul.staff-scanner/CHANGELOG.md",
+  "documentationUrl": "https://github.com/Club-Maul/staff-scanner-v2",
+  "keywords": [
+    "vrchat",
+    "avatars",
+    "club-maul",
+    "staff-scanner"
+  ],
+  "vpmDependencies": {
+    "com.vrchat.avatars": ">=3.7.0",
+    "com.vrcfury.vrcfury": ">=1.0.0"
+  }
+}
