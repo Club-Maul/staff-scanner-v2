@@ -19,43 +19,45 @@ namespace ClubMaul.StaffScanner
     {
         public const string Version = "1.0.0";
 
-        [Tooltip("SkinnedMeshRenderers to duplicate. If left empty, the builder auto-detects the avatar's body mesh (via VisemeSkinnedMesh, then by vertex count).")]
+        [Tooltip("Meshes to duplicate. If empty, auto-detects the avatar's body mesh.")]
         public List<SkinnedMeshRenderer> SourceRenderers = new List<SkinnedMeshRenderer>();
 
-        [Tooltip("Which role's material gets applied to the generated scanner mesh(es).")]
+        [Tooltip("Which role's material is applied to the scanner mesh.")]
         public StaffRole Role = StaffRole.Beast;
 
-        [Tooltip("Material used when Role = Beast.")]
+        [Tooltip("Material for the Beast role.")]
         public Material BeastMaterial;
 
-        [Tooltip("Material used when Role = Security.")]
+        [Tooltip("Material for the Security role.")]
         public Material SecurityMaterial;
 
-        [Tooltip("Material used when Role = Photography.")]
+        [Tooltip("Material for the Photography role.")]
         public Material PhotographyMaterial;
 
-        [Tooltip("How heavily to reduce the mesh. 0 = lightest decimation (highest poly), 1 = heaviest. Maps internally to a vertex-cluster cell size of 0.01–0.1 source-mesh units.")]
+        [Tooltip("Mesh reduction. 0 = lightest, 1 = heaviest.")]
         [Range(0f, 1f)]
         public float DecimationAmount = 0.5f;
 
-        [Tooltip("Base name of the generated GameObject(s) (parented next to each source mesh). When multiple sources are processed, the source mesh's name is appended.")]
+        [Tooltip("Name of the generated mesh object (source name appended when multiple).")]
         public string GeneratedObjectName = "StaffScannerMesh";
 
-        [Header("World Features")]
-        [Tooltip("Apply the 'Slow' contact sender to your avatar so the Club Maul world can react to it. (Placeholder feature.)")]
+        [Tooltip("Menu path the toggles are written under. Use slashes for sub-folders.")]
+        public string MenuPath = "Staff Scanner V2";
+
+        [Header("Plugins")]
+        [Tooltip("Plugin assets (e.g. Suburbia). Each adds world contacts like the World Feature checkboxes.")]
+        public List<StaffScannerPlugin> Plugins = new List<StaffScannerPlugin>();
+
+        [Header("Universal")]
+        [Tooltip("Add the 'Slow' contact sender.")]
         public bool Slow = false;
 
-        [Tooltip("Apply the 'Rumble' contact sender to your avatar so the Club Maul world can react to it. (Placeholder feature.)")]
+        [Tooltip("Add the 'Rumble' contact sender.")]
         public bool Rumble = false;
 
-        [Tooltip("Apply the 'Unique' contact sender to your avatar so the Club Maul world can react to it.")]
-        public bool Unique = false;
-
         /// <summary>
-        /// Defines a world feature: the GameObject name to create, the contact-sender collision tag
-        /// the Club Maul world listens for, and whether the user checked it. When Enabled, the builder
-        /// generates a world-locked VRCContactSender with this tag at build time. Add a checkbox above
-        /// + an entry here to register a new feature.
+        /// A world feature: object name, collision tag, and whether it's checked. When enabled, the
+        /// builder creates a world-locked VRCContactSender with this tag. Add a checkbox + entry to register one.
         /// </summary>
         public readonly struct WorldFeature
         {
@@ -74,8 +76,11 @@ namespace ClubMaul.StaffScanner
         {
             new WorldFeature("Slow",   "ClubMaul/Slow",   Slow),
             new WorldFeature("Rumble", "ClubMaul/Rumble", Rumble),
-            new WorldFeature("Unique", "ClubMaul/Unique", Unique),
         };
+
+        /// <summary>Menu path the toggles are written under, falling back to the default if blank.</summary>
+        public string GetMenuPath() =>
+            string.IsNullOrWhiteSpace(MenuPath) ? "Staff Scanner V2" : MenuPath.Trim().Trim('/');
 
         public Material GetMaterialForRole()
         {

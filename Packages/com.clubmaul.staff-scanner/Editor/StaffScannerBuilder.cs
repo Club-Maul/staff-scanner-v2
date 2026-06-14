@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -14,6 +15,7 @@ using VRC.Dynamics;
 using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Dynamics.Constraint.Components;
 using com.vrcfury.api;
+using com.vrcfury.api.Components;
 
 namespace ClubMaul.StaffScanner.Editor
 {
@@ -119,49 +121,119 @@ namespace ClubMaul.StaffScanner.Editor
             fc.AddGlobalParam(ShowParam);
         }
 
-        // Everything contact-related is regenerated at build time under a world-locked "Contacts" group:
-        //  - "Receiver" + "Sender" + "Contacts" are always built (the scanner's core).
-        //  - each checked World Feature (Slow/Rumble/Unique) adds its own sender.
-        // Every sender/receiver gets a VRCFury menu Toggle under the Staff Scanner V2 menu that turns it
-        // on/off. The contacts sit at world origin (the VRCParentConstraint trick) so all scanner users'
-        // contacts coincide there.
+        // Contacts are rebuilt under a world-locked "Contacts" group: core Receiver + Sender always,
+        // plus a sender per checked World Feature and per plugin contact. Each gets a VRCFury menu toggle.
+        // The group sits at world origin (VRCParentConstraint) so all scanner users' contacts coincide.
         private const float  SenderRadius   = 0.5f;
-        private const string MenuPrefix     = "Staff Scanner V2";
         private const string ContactTag     = "ClubMaul/Contact";
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
+        private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 
         private static void ApplyWorldFeatures(StaffScannerComponent comp)
         {
             var contacts = EnsureContactsGroup(comp.transform);
-            // VRCFury toggles must live on an always-active object; the prefab root qualifies and
-            // outlives the StaffScannerComponent (only the component is stripped, not its GameObject).
+            // Toggles must live on an always-active object; only the component is stripped, not its GameObject.
             var menuHost = comp.gameObject;
+            var menuPath = comp.GetMenuPath();
 
-            // Core contacts — always built, regardless of the feature checkboxes.
+            // Core contacts — always built.
             var receiver = BuildReceiver(contacts);
-            AddMenuToggle(menuHost, "Broadcast Self", receiver, saved: true, defaultOn: true);
+            AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
             var sender = BuildSender(contacts, "Sender", ContactTag, localOnly: true);
-            AddMenuToggle(menuHost, "See Others", sender, saved: true, defaultOn: true);
+            AddMenuToggle(menuHost, menuPath, "See Others", sender, saved: true, defaultOn: true);
 
             // Optional world features — Beast role only.
             bool isBeast = comp.Role == StaffRole.Beast;
             foreach (var feature in comp.GetWorldFeatures())
             {
-                // Drop any stale leftover so re-builds / old prefabs don't duplicate it.
+                // Drop any stale leftover so re-builds don't duplicate it.
                 var existing = FindChildByName(contacts, feature.ObjectName);
                 if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
 
                 if (!isBeast || !feature.Enabled) continue;
 
                 var go = BuildSender(contacts, feature.ObjectName, feature.CollisionTag, localOnly: true);
-                AddMenuToggle(menuHost, feature.ObjectName, go);
+                AddMenuToggle(menuHost, menuPath, feature.ObjectName, go);
                 Debug.Log($"[StaffScanner] Created world-feature '{feature.ObjectName}' (tag '{feature.CollisionTag}').");
+            }
+
+            if (isBeast) ApplyPlugins(comp, contacts, menuHost, menuPath);
+            SetMenuIcon(menuHost, menuPath);
+        }
+
+        // Each plugin adds its contacts under a per-plugin sub-folder of the menu.
+        private static void ApplyPlugins(StaffScannerComponent comp, Transform contacts, GameObject menuHost, string menuPath)
+        {
+            if (comp.Plugins == null) return;
+            foreach (var plugin in comp.Plugins)
+            {
+                if (plugin == null || plugin.Contacts == null) continue;
+                string pluginName = string.IsNullOrWhiteSpace(plugin.DisplayName) ? plugin.name : plugin.DisplayName;
+
+                foreach (var contact in plugin.Contacts)
+                {
+                    if (contact == null ||
+                        string.IsNullOrWhiteSpace(contact.Name) ||
+                        string.IsNullOrWhiteSpace(contact.CollisionTag))
+                        continue;
+
+                    // Namespace the object by plugin so two plugins can't collide.
+                    string objName = $"{pluginName}_{contact.Name}";
+                    var existing = FindChildByName(contacts, objName);
+                    if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+
+                    var go = BuildSender(contacts, objName, contact.CollisionTag, localOnly: true);
+                    bool isButton = contact.ControlType == PluginControlType.Button;
+                    AddMenuToggle(menuHost, $"{menuPath}/{pluginName}", contact.Name, go, holdButton: isButton);
+                    Debug.Log($"[StaffScanner] Plugin '{pluginName}' created contact '{contact.Name}' " +
+                              $"(tag '{contact.CollisionTag}', {contact.ControlType}).");
+                }
             }
         }
 
-        // Creates a default-off VRCContactSender under the world-locked group (replacing any same-named
-        // leftover). Default-off so its menu toggle is what enables the contact.
+        // Applies the flames icon to the menu folder via VRCFury's "Override Menu Icon" feature.
+        // That feature (VF.Model.Feature.SetIcon) isn't in VRCFury's public API, so we build it
+        // through reflection — the same VRCFury component the API's toggles use.
+        private static void SetMenuIcon(GameObject host, string menuPath)
+        {
+            var iconPath = AssetDatabase.GUIDToAssetPath(IconGuid);
+            var icon = string.IsNullOrEmpty(iconPath) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(iconPath);
+            if (icon == null)
+            {
+                Debug.LogWarning("[StaffScanner] Menu icon (Misc/Club_Maul_Flames.png) not found — skipping.");
+                return;
+            }
+
+            try
+            {
+                var vrcFuryType = Type.GetType("VF.Model.VRCFury, VRCFury");
+                var setIconType = Type.GetType("VF.Model.Feature.SetIcon, VRCFury");
+                if (vrcFuryType == null || setIconType == null)
+                {
+                    Debug.LogWarning("[StaffScanner] VRCFury SetIcon types not found — skipping menu icon.");
+                    return;
+                }
+
+                var setIcon = Activator.CreateInstance(setIconType);
+                setIconType.GetField("path").SetValue(setIcon, menuPath);
+
+                var iconField   = setIconType.GetField("icon");
+                var guidWrapper = Activator.CreateInstance(iconField.FieldType);
+                iconField.FieldType.GetField("objRef").SetValue(guidWrapper, icon);
+                iconField.SetValue(setIcon, guidWrapper);
+
+                var vrcFury = host.AddComponent(vrcFuryType);
+                vrcFuryType.GetField("content").SetValue(vrcFury, setIcon);
+                Debug.Log($"[StaffScanner] Set menu icon for '{menuPath}'.");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[StaffScanner] Failed to set menu icon: {ex.Message}");
+            }
+        }
+
+        // Default-off VRCContactSender (its menu toggle enables it); replaces any same-named leftover.
         private static GameObject BuildSender(Transform parent, string name, string tag, bool localOnly)
         {
             var existing = FindChildByName(parent, name);
@@ -182,8 +254,7 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        // Creates the "Receiver" that drives the scanner-mesh param (ShowParam) when it detects another
-        // scanner user's sender. Default-off; enabled by the "Broadcast Self" toggle.
+        // Drives ShowParam when it detects another scanner user's sender. Enabled by "Broadcast Self".
         private static GameObject BuildReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "Receiver");
@@ -209,14 +280,33 @@ namespace ClubMaul.StaffScanner.Editor
         }
 
         // VRCFury menu Toggle (synced param) that turns 'target' on while the menu item is on.
-        private static void AddMenuToggle(GameObject host, string itemName, GameObject target,
-                                          bool saved = false, bool defaultOn = false)
+        // 'menuPath' is the folder the item lives under. When holdButton is set, the menu control
+        // is a momentary Button (on only while held) instead of a sticky toggle.
+        private static void AddMenuToggle(GameObject host, string menuPath, string itemName, GameObject target,
+                                          bool saved = false, bool defaultOn = false, bool holdButton = false)
         {
             var toggle = FuryComponents.CreateToggle(host);
-            toggle.SetMenuPath($"{MenuPrefix}/{itemName}");
-            if (saved)     toggle.SetSaved();
-            if (defaultOn) toggle.SetDefaultOn();
+            toggle.SetMenuPath($"{menuPath}/{itemName}");
+            if (saved)      toggle.SetSaved();
+            if (defaultOn)  toggle.SetDefaultOn();
+            if (holdButton) SetHoldButton(toggle);
             toggle.GetActions().AddTurnOn(target);
+        }
+
+        // 'holdButton' (Button mode) isn't in VRCFury's public API, so set it on the underlying
+        // Toggle model that FuryToggle wraps.
+        private static void SetHoldButton(FuryToggle toggle)
+        {
+            try
+            {
+                var modelField = typeof(FuryToggle).GetField("c", BindingFlags.NonPublic | BindingFlags.Instance);
+                var model = modelField?.GetValue(toggle);
+                model?.GetType().GetField("holdButton")?.SetValue(model, true);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[StaffScanner] Couldn't set Button mode: {ex.Message}");
+            }
         }
 
         // Returns the world-locked "Contacts" group, creating it (with a world-origin VRCParentConstraint)
