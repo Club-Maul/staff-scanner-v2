@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-06-18
+
+### Changed
+
+- Reworded the package description and README: the contact senders/receivers and menu toggles are reacted to by "compatible worlds" rather than "the Club Maul world".
+
 ## [1.2.2] - 2026-06-18
 
 ### Added

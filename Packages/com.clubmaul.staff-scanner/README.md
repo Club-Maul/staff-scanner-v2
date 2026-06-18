@@ -8,7 +8,7 @@ The Staff Scanner V2 for **Club Maul**. This is **REQUIRED** for all Beasts at C
 2. Under **Source Renderers**, drag and drop all meshes that you would like to appear to others using the scanner (your body is the important one).
 3. Pick your role in the dropdown (**Beast**, **Security**, or **Photography**).
 4. Adjust **Decimation Amount** to your liking (`0.5` is recommended).
-5. Under **World Features**, tick any features you want (e.g. Slow, Rumble, Unique). Each checked box adds that feature's contact sender plus an in-game menu toggle when you build, so you can switch it on/off and the Club Maul world can react. Leave them unchecked to skip.
+5. Under **World Features**, tick any features you want (e.g. Slow, Rumble, Unique). Each checked box adds that feature's contact sender plus an in-game menu toggle when you build, so you can switch it on/off and compatible worlds can react. Leave them unchecked to skip.
 6. All done!
 
 ## How to use
