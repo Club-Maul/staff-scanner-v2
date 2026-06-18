@@ -24,6 +24,9 @@ namespace ClubMaul.StaffScanner.Editor
         private const string ShowParam  = "ClubMaulShow";
         // VRChat built-in, local-only param — true only on the wearer's own client. Hides the mesh from its wearer.
         private const string LocalParam = "IsLocal";
+        // Non-synced (per-viewer) param driven by the SphereView receiver — see BuildSphereReceiver.
+        private const string SphereParam = "ClubMaulSphere";
+        private const float  SphereSize  = 0.3f;
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
         private static string TempFolder
@@ -99,10 +102,14 @@ namespace ClubMaul.StaffScanner.Editor
 
             if (generated.Count == 0) return;
 
+            // Alternate hips-centered sphere shown in place of the mesh under Sphere View.
+            var sphere = BuildSphere(avatarRoot, material);
+            var sphereTargets = sphere != null ? new List<GameObject> { sphere } : new List<GameObject>();
+
             // Default-off avoids a one-frame flash on load before the FX layer settles.
             foreach (var go in generated) go.SetActive(false);
 
-            var controller = BuildAnimatorController(avatarRoot, generated);
+            var controller = BuildAnimatorController(avatarRoot, generated, sphereTargets);
 
             var expParams = ScriptableObject.CreateInstance<VRCExpressionParameters>();
             expParams.parameters = new[]
@@ -122,6 +129,45 @@ namespace ClubMaul.StaffScanner.Editor
             fc.AddParams(expParams);
             // Global so VRCFury doesn't rename it — keeps other Club Maul tools in sync.
             fc.AddGlobalParam(ShowParam);
+
+            // Un-prefix the receiver-driven param; left out of expParams so it stays local (per-viewer).
+            if (sphere != null) fc.AddGlobalParam(SphereParam);
+        }
+
+        // Non-skinned sphere on the humanoid Hips with the scanner material. Default-off; null if non-humanoid.
+        private static GameObject BuildSphere(GameObject avatarRoot, Material material)
+        {
+            var hips = FindHips(avatarRoot);
+            if (hips == null)
+            {
+                Debug.LogWarning("[StaffScanner] No humanoid Hips bone found — skipping the Sphere View option.");
+                return null;
+            }
+
+            // Borrow Unity's built-in sphere mesh (bundled, so it uploads), then drop the primitive.
+            var temp = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var sphereMesh = temp.GetComponent<MeshFilter>().sharedMesh;
+            UnityEngine.Object.DestroyImmediate(temp);
+
+            var go = new GameObject("StaffScannerSphere");
+            go.transform.SetParent(hips, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale    = Vector3.one * SphereSize;
+
+            go.AddComponent<MeshFilter>().sharedMesh = sphereMesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = material;
+
+            go.SetActive(false);
+            return go;
+        }
+
+        private static Transform FindHips(GameObject avatarRoot)
+        {
+            var animator = avatarRoot.GetComponent<Animator>();
+            if (animator != null && animator.isHuman)
+                return animator.GetBoneTransform(HumanBodyBones.Hips);
+            return null;
         }
 
         // Contacts are rebuilt under a world-locked "Contacts" group: core Receiver + Sender always,
@@ -129,6 +175,7 @@ namespace ClubMaul.StaffScanner.Editor
         // The group sits at world origin (VRCParentConstraint) so all scanner users' contacts coincide.
         private const float  SenderRadius   = 0.5f;
         private const string ContactTag     = "ClubMaul/Contact";
+        private const string SphereTag      = "ClubMaul/SphereView";
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 
@@ -146,6 +193,12 @@ namespace ClubMaul.StaffScanner.Editor
             // Networked (not local-only) so other players' receivers can detect it cross-client.
             var sender = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
             AddMenuToggle(menuHost, menuPath, "See Others", sender, saved: true, defaultOn: true);
+
+            // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
+            // enabling it shows other scanners as spheres to you only.
+            var sphereSender = BuildSender(contacts, "SphereViewSender", SphereTag, localOnly: true);
+            AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
+            BuildSphereReceiver(contacts);
 
             // Optional world features — Beast role only.
             bool isBeast = comp.Role == StaffRole.Beast;
@@ -283,6 +336,31 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
+        // Drives the non-synced ClubMaulSphere from any local "Sphere View" sender. Always active so it
+        // evaluates per-viewer — that's what makes others render as spheres only for whoever enabled it.
+        private static GameObject BuildSphereReceiver(Transform parent)
+        {
+            var existing = FindChildByName(parent, "SphereViewReceiver");
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+
+            var go = new GameObject("SphereViewReceiver");
+            go.transform.SetParent(parent, false);
+
+            var receiver = go.AddComponent<VRCContactReceiver>();
+            receiver.shapeType     = ContactBase.ShapeType.Sphere;
+            receiver.radius        = SenderRadius;
+            receiver.position      = Vector3.zero;
+            receiver.rotation      = Quaternion.identity;
+            receiver.localOnly     = false;
+            receiver.collisionTags = new List<string> { SphereTag };
+            receiver.allowSelf     = false;
+            receiver.allowOthers   = true;
+            receiver.receiverType  = ContactReceiver.ReceiverType.Constant;
+            receiver.parameter     = SphereParam;
+
+            return go;
+        }
+
         // VRCFury menu Toggle (synced param) that turns 'target' on while the menu item is on.
         // 'menuPath' is the folder the item lives under. When holdButton is set, the menu control
         // is a momentary Button (on only while held) instead of a sticky toggle.
@@ -403,48 +481,69 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        private static AnimatorController BuildAnimatorController(GameObject avatarRoot, List<GameObject> targets)
+        private static AnimatorController BuildAnimatorController(GameObject avatarRoot, List<GameObject> meshTargets, List<GameObject> sphereTargets)
         {
+            bool hasSphere = sphereTargets != null && sphereTargets.Count > 0;
+
             var controller = new AnimatorController { name = "StaffScanner_FX" };
             controller.AddParameter(ShowParam, AnimatorControllerParameterType.Bool);
             controller.AddParameter(LocalParam, AnimatorControllerParameterType.Bool);
+            if (hasSphere) controller.AddParameter(SphereParam, AnimatorControllerParameterType.Bool);
 
-            controller.AddLayer("StaffScanner");
+            // Full mesh: shown when scanning and not the wearer. Suppressed in sphere mode (if available).
+            BuildShowLayer(controller, "StaffScannerMesh", avatarRoot, meshTargets,
+                           sphereMode: hasSphere ? (bool?)false : null);
+
+            // Sphere: same gate, but only in sphere mode.
+            if (hasSphere)
+                BuildShowLayer(controller, "StaffScannerSphere", avatarRoot, sphereTargets, sphereMode: true);
+
+            return controller;
+        }
+
+        // A weight-1 layer that activates 'targets' when ShowParam is set and LocalParam is not. When
+        // 'sphereMode' has a value, SphereParam must also match it (false = mesh layer, true = sphere layer).
+        private static void BuildShowLayer(AnimatorController controller, string layerName,
+                                           GameObject avatarRoot, List<GameObject> targets, bool? sphereMode)
+        {
+            controller.AddLayer(layerName);
             var layers = controller.layers;
-            layers[0].defaultWeight = 1f;
+            int idx = layers.Length - 1;
+            layers[idx].defaultWeight = 1f;
             controller.layers = layers;
 
-            var sm = controller.layers[0].stateMachine;
+            var sm = controller.layers[idx].stateMachine;
 
-            var offClip  = BuildToggleClip("StaffScanner_Off", avatarRoot, targets, false);
             var offState = sm.AddState("Off");
-            offState.motion             = offClip;
+            offState.motion             = BuildToggleClip(layerName + "_Off", avatarRoot, targets, false);
             offState.writeDefaultValues = false;
             sm.defaultState             = offState;
 
-            var onClip  = BuildToggleClip("StaffScanner_On", avatarRoot, targets, true);
             var onState = sm.AddState("On");
-            onState.motion             = onClip;
+            onState.motion             = BuildToggleClip(layerName + "_On", avatarRoot, targets, true);
             onState.writeDefaultValues = false;
 
-            // On only when shown and not the local wearer.
             var toOn = offState.AddTransition(onState);
             toOn.hasExitTime = false;
             toOn.duration    = 0f;
             toOn.AddCondition(AnimatorConditionMode.If,    0, ShowParam);
             toOn.AddCondition(AnimatorConditionMode.IfNot, 0, LocalParam);
+            if (sphereMode.HasValue)
+                toOn.AddCondition(sphereMode.Value ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0, SphereParam);
 
-            var toOff = onState.AddTransition(offState);
-            toOff.hasExitTime = false;
-            toOff.duration    = 0f;
-            toOff.AddCondition(AnimatorConditionMode.IfNot, 0, ShowParam);
+            // Leave "On" if any single gate fails (separate transitions == OR).
+            AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, ShowParam);
+            AddOffTransition(onState, offState, AnimatorConditionMode.If,    LocalParam);
+            if (sphereMode.HasValue)
+                AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereParam);
+        }
 
-            var toOffLocal = onState.AddTransition(offState);
-            toOffLocal.hasExitTime = false;
-            toOffLocal.duration    = 0f;
-            toOffLocal.AddCondition(AnimatorConditionMode.If, 0, LocalParam);
-
-            return controller;
+        private static void AddOffTransition(AnimatorState from, AnimatorState to, AnimatorConditionMode mode, string param)
+        {
+            var t = from.AddTransition(to);
+            t.hasExitTime = false;
+            t.duration    = 0f;
+            t.AddCondition(mode, 0, param);
         }
 
         private static AnimationClip BuildToggleClip(string name, GameObject avatarRoot, List<GameObject> targets, bool active)
