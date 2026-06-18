@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-06-18
+
+### Added
+
+- **Sphere View** menu toggle: when enabled, other staff scanners render as a small hips-centered sphere (same role material) instead of the full mesh — a lighter, clearer at-a-glance view. It's per-viewer (only you see the change), built on a local-only contact sender plus an always-on receiver driving a non-synced parameter.
+
 ## [1.2.1] - 2026-06-18
 
 ### Fixed
