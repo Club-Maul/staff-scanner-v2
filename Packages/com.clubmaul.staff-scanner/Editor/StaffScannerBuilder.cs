@@ -22,6 +22,8 @@ namespace ClubMaul.StaffScanner.Editor
     public class StaffScannerBuilder : IVRCSDKPreprocessAvatarCallback
     {
         private const string ShowParam  = "ClubMaulShow";
+        // VRChat built-in, local-only param — true only on the wearer's own client. Hides the mesh from its wearer.
+        private const string LocalParam = "IsLocal";
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
         private static string TempFolder
@@ -94,6 +96,7 @@ namespace ClubMaul.StaffScanner.Editor
                 var go = BuildOne(comp, source, material, multi);
                 if (go != null) generated.Add(go);
             }
+
             if (generated.Count == 0) return;
 
             // Default-off avoids a one-frame flash on load before the FX layer settles.
@@ -140,7 +143,8 @@ namespace ClubMaul.StaffScanner.Editor
             var receiver = BuildReceiver(contacts);
             AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
-            var sender = BuildSender(contacts, "Sender", ContactTag, localOnly: true);
+            // Networked (not local-only) so other players' receivers can detect it cross-client.
+            var sender = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
             AddMenuToggle(menuHost, menuPath, "See Others", sender, saved: true, defaultOn: true);
 
             // Optional world features — Beast role only.
@@ -403,6 +407,7 @@ namespace ClubMaul.StaffScanner.Editor
         {
             var controller = new AnimatorController { name = "StaffScanner_FX" };
             controller.AddParameter(ShowParam, AnimatorControllerParameterType.Bool);
+            controller.AddParameter(LocalParam, AnimatorControllerParameterType.Bool);
 
             controller.AddLayer("StaffScanner");
             var layers = controller.layers;
@@ -422,15 +427,22 @@ namespace ClubMaul.StaffScanner.Editor
             onState.motion             = onClip;
             onState.writeDefaultValues = false;
 
+            // On only when shown and not the local wearer.
             var toOn = offState.AddTransition(onState);
             toOn.hasExitTime = false;
             toOn.duration    = 0f;
-            toOn.AddCondition(AnimatorConditionMode.If, 0, ShowParam);
+            toOn.AddCondition(AnimatorConditionMode.If,    0, ShowParam);
+            toOn.AddCondition(AnimatorConditionMode.IfNot, 0, LocalParam);
 
             var toOff = onState.AddTransition(offState);
             toOff.hasExitTime = false;
             toOff.duration    = 0f;
             toOff.AddCondition(AnimatorConditionMode.IfNot, 0, ShowParam);
+
+            var toOffLocal = onState.AddTransition(offState);
+            toOffLocal.hasExitTime = false;
+            toOffLocal.duration    = 0f;
+            toOffLocal.AddCondition(AnimatorConditionMode.If, 0, LocalParam);
 
             return controller;
         }
