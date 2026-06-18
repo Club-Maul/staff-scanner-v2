@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-06-18
+
+### Fixed
+
+- Scanner mesh never appeared in-game: the broadcast contact sender was local-only, so other players' receivers could never detect it across the network (it only worked in-editor, where the show parameter was driven directly). The sender is now networked.
+- The wearer could see their own scanner mesh. The FX "On" state is now gated on the built-in `IsLocal` parameter, so the mesh is hidden from its wearer while staying visible to everyone else.
+
 ## [1.2.0] - 2026-06-14
 
 ### Added
