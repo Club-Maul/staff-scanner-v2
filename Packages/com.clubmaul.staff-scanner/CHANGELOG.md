@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-06-18
+
+### Fixed
+
+- Sphere View sphere is now a fixed world size on every avatar — the Hips bone's scale is divided out, so a scaled armature no longer makes the sphere too big or too small.
+
 ## [1.2.3] - 2026-06-18
 
 ### Changed

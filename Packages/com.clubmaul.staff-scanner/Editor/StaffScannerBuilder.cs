@@ -26,7 +26,7 @@ namespace ClubMaul.StaffScanner.Editor
         private const string LocalParam = "IsLocal";
         // Non-synced (per-viewer) param driven by the SphereView receiver — see BuildSphereReceiver.
         private const string SphereParam = "ClubMaulSphere";
-        private const float  SphereSize  = 0.3f;
+        private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
         private static string TempFolder
@@ -153,7 +153,12 @@ namespace ClubMaul.StaffScanner.Editor
             go.transform.SetParent(hips, false);
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;
-            go.transform.localScale    = Vector3.one * SphereSize;
+            // Divide out the Hips' world scale so the sphere is a fixed world size on every rig.
+            var ls = hips.lossyScale;
+            go.transform.localScale = new Vector3(
+                ls.x != 0f ? SphereSize / ls.x : SphereSize,
+                ls.y != 0f ? SphereSize / ls.y : SphereSize,
+                ls.z != 0f ? SphereSize / ls.z : SphereSize);
 
             go.AddComponent<MeshFilter>().sharedMesh = sphereMesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = material;
