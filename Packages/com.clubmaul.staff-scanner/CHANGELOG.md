@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] - 2026-06-19
+
+### Fixed
+
+- Scanner visuals are now visible to staff only. Non-staff players could see the scanner mesh/sphere; visibility is now gated on a non-synced "viewer is staff" contact param (a local-only staff sender + always-on receiver per wearer), so only players who also have the scanner see them. (Staff must re-upload to apply.)
+
 ## [1.2.5] - 2026-06-19
 
 ### Added

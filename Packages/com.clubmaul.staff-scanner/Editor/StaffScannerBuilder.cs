@@ -26,6 +26,9 @@ namespace ClubMaul.StaffScanner.Editor
         private const string LocalParam = "IsLocal";
         // Non-synced (per-viewer) param driven by the SphereView receiver — see BuildSphereReceiver.
         private const string SphereParam = "ClubMaulSphere";
+        // Non-synced (per-viewer): true only on clients whose local player also wears the scanner, so
+        // scanner visuals render for staff only — see BuildStaffReceiver.
+        private const string StaffParam  = "ClubMaulStaffView";
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
@@ -129,8 +132,9 @@ namespace ClubMaul.StaffScanner.Editor
             fc.AddParams(expParams);
             // Global so VRCFury doesn't rename it — keeps other Club Maul tools in sync.
             fc.AddGlobalParam(ShowParam);
+            // Receiver-driven, left out of expParams so it stays local (per-viewer); un-prefix the name.
+            fc.AddGlobalParam(StaffParam);
 
-            // Un-prefix the receiver-driven param; left out of expParams so it stays local (per-viewer).
             if (sphere != null) fc.AddGlobalParam(SphereParam);
         }
 
@@ -181,6 +185,7 @@ namespace ClubMaul.StaffScanner.Editor
         private const float  SenderRadius   = 0.5f;
         private const string ContactTag     = "ClubMaul/Contact";
         private const string SphereTag      = "ClubMaul/SphereView";
+        private const string StaffTag       = "ClubMaul/Staff";
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 
@@ -204,6 +209,12 @@ namespace ClubMaul.StaffScanner.Editor
             var sphereSender = BuildSender(contacts, "SphereViewSender", SphereTag, localOnly: true);
             AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
             BuildSphereReceiver(contacts);
+
+            // Staff-only visibility: every wearer broadcasts a local-only "I'm staff" sender; an always-on
+            // receiver drives the non-synced ClubMaulStaffView, so scanner visuals render only for viewers
+            // who also wear the scanner (non-staff never see them).
+            BuildStaffSender(contacts);
+            BuildStaffReceiver(contacts);
 
             // Optional world features — Beast role only.
             bool isBeast = comp.Role == StaffRole.Beast;
@@ -366,6 +377,39 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
+        // Always-on, local-only sender marking the wearer as staff on their own client.
+        private static GameObject BuildStaffSender(Transform parent)
+        {
+            var go = BuildSender(parent, "StaffSelfSender", StaffTag, localOnly: true);
+            go.SetActive(true); // no toggle — every scanner wearer counts as a staff viewer
+            return go;
+        }
+
+        // Drives the non-synced ClubMaulStaffView from the local player's StaffSelfSender. Always active;
+        // true only on clients whose local player wears the scanner — i.e. staff viewers.
+        private static GameObject BuildStaffReceiver(Transform parent)
+        {
+            var existing = FindChildByName(parent, "StaffViewReceiver");
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+
+            var go = new GameObject("StaffViewReceiver");
+            go.transform.SetParent(parent, false);
+
+            var receiver = go.AddComponent<VRCContactReceiver>();
+            receiver.shapeType     = ContactBase.ShapeType.Sphere;
+            receiver.radius        = SenderRadius;
+            receiver.position      = Vector3.zero;
+            receiver.rotation      = Quaternion.identity;
+            receiver.localOnly     = false;
+            receiver.collisionTags = new List<string> { StaffTag };
+            receiver.allowSelf     = false;
+            receiver.allowOthers   = true;
+            receiver.receiverType  = ContactReceiver.ReceiverType.Constant;
+            receiver.parameter     = StaffParam;
+
+            return go;
+        }
+
         // VRCFury menu Toggle (synced param) that turns 'target' on while the menu item is on.
         // 'menuPath' is the folder the item lives under. When holdButton is set, the menu control
         // is a momentary Button (on only while held) instead of a sticky toggle.
@@ -493,6 +537,7 @@ namespace ClubMaul.StaffScanner.Editor
             var controller = new AnimatorController { name = "StaffScanner_FX" };
             controller.AddParameter(ShowParam, AnimatorControllerParameterType.Bool);
             controller.AddParameter(LocalParam, AnimatorControllerParameterType.Bool);
+            controller.AddParameter(StaffParam, AnimatorControllerParameterType.Bool);
             if (hasSphere) controller.AddParameter(SphereParam, AnimatorControllerParameterType.Bool);
 
             // Full mesh: shown when scanning and not the wearer. Suppressed in sphere mode (if available).
@@ -533,12 +578,14 @@ namespace ClubMaul.StaffScanner.Editor
             toOn.duration    = 0f;
             toOn.AddCondition(AnimatorConditionMode.If,    0, ShowParam);
             toOn.AddCondition(AnimatorConditionMode.IfNot, 0, LocalParam);
+            toOn.AddCondition(AnimatorConditionMode.If,    0, StaffParam);
             if (sphereMode.HasValue)
                 toOn.AddCondition(sphereMode.Value ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0, SphereParam);
 
             // Leave "On" if any single gate fails (separate transitions == OR).
             AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, ShowParam);
             AddOffTransition(onState, offState, AnimatorConditionMode.If,    LocalParam);
+            AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, StaffParam);
             if (sphereMode.HasValue)
                 AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereParam);
         }
