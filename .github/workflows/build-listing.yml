@@ -56,9 +56,21 @@ jobs:
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj') }}
       
-      # Build Package Version Listing with Nuke
+      # Build Package Version Listing with Nuke. Retried because the action's multi-target
+      # build occasionally races on PackageBuilder.deps.json; a re-run clears it.
       - name: Build Package Version Listing
-        run: ${{ env.pathToCi }}/build.cmd BuildRepoListing --root ${{ env.pathToCi }} --list-publish-directory $GITHUB_WORKSPACE/${{ env.listPublishDirectory }} --current-package-name ${{ vars.PACKAGE_NAME }}
+        run: |
+          set +e
+          for attempt in 1 2 3; do
+            echo "Build attempt $attempt"
+            ${{ env.pathToCi }}/build.cmd BuildRepoListing --root ${{ env.pathToCi }} --list-publish-directory $GITHUB_WORKSPACE/${{ env.listPublishDirectory }} --current-package-name ${{ vars.PACKAGE_NAME }}
+            code=$?
+            if [ $code -eq 0 ]; then exit 0; fi
+            echo "Attempt $attempt failed (exit $code); retrying in 10s..."
+            sleep 10
+          done
+          echo "All build attempts failed"
+          exit 1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
