@@ -10,7 +10,8 @@ namespace ClubMaul.StaffScanner
     {
         Beast,
         Security,
-        Photography
+        Photography,
+        Host
     }
 
     [DisallowMultipleComponent]
@@ -34,7 +35,10 @@ namespace ClubMaul.StaffScanner
         [Tooltip("Material for the Photography role.")]
         public Material PhotographyMaterial;
 
-        [Tooltip("Mesh reduction. 0 = lightest, 1 = heaviest.")]
+        [Tooltip("Material for the Host role.")]
+        public Material HostMaterial;
+
+        [Tooltip("Decimation strength: 0 = less decimation (more triangles), 1 = more decimation (fewer triangles).")]
         [Range(0f, 1f)]
         public float DecimationAmount = 0.5f;
 
@@ -88,6 +92,7 @@ namespace ClubMaul.StaffScanner
             {
                 case StaffRole.Security:    return SecurityMaterial;
                 case StaffRole.Photography: return PhotographyMaterial;
+                case StaffRole.Host:        return HostMaterial;
                 default:                    return BeastMaterial;
             }
         }

@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using VRC.SDK3.Avatars.Components;
 
 namespace ClubMaul.StaffScanner.Editor
 {
@@ -13,6 +14,10 @@ namespace ClubMaul.StaffScanner.Editor
     {
         // These are drawn manually at the end, gated on Role == Beast.
         private static readonly string[] WorldFeatureFields = { "Slow", "Rumble" };
+
+        // Cached decimation preview — only re-run the (heavy) decimation when sources or amount change.
+        private string _previewKey;
+        private int _previewBefore, _previewAfter;
 
         public override void OnInspectorGUI()
         {
@@ -33,6 +38,8 @@ namespace ClubMaul.StaffScanner.Editor
                 if (prop.name == "Plugins" && !isBeast) continue;
                 EditorGUILayout.PropertyField(prop, true);
 
+                if (prop.name == "SourceRenderers") DrawSourceDefaultInfo();
+                if (prop.name == "DecimationAmount") DrawDecimationPreview();
                 // The add-from-anywhere dropdown rides directly under the Plugins list.
                 if (prop.name == "Plugins") DrawAddPluginButton();
             }
@@ -45,6 +52,80 @@ namespace ClubMaul.StaffScanner.Editor
             }
 
             serializedObject.ApplyModifiedProperties();
+        }
+
+        // The explicit source list, or the auto-detected body mesh (same pick the build uses) if empty.
+        private List<SkinnedMeshRenderer> GetEffectiveSources(out bool autoDetected)
+        {
+            autoDetected = false;
+            var list = new List<SkinnedMeshRenderer>();
+            var arr = serializedObject.FindProperty("SourceRenderers");
+            for (int i = 0; i < arr.arraySize; i++)
+            {
+                var smr = arr.GetArrayElementAtIndex(i).objectReferenceValue as SkinnedMeshRenderer;
+                if (smr != null && !list.Contains(smr)) list.Add(smr);
+            }
+            if (list.Count == 0)
+            {
+                var root = FindAvatarRoot();
+                var auto = root != null ? StaffScannerBuilder.AutoDetectBody(root) : null;
+                if (auto != null) { list.Add(auto); autoDetected = true; }
+            }
+            return list;
+        }
+
+        private GameObject FindAvatarRoot()
+        {
+            var comp = (StaffScannerComponent)target;
+            var desc = comp.GetComponentInParent<VRCAvatarDescriptor>();
+            return desc != null ? desc.gameObject : comp.transform.root.gameObject;
+        }
+
+        // When no source is set, tell the user which mesh the build will auto-pick.
+        private void DrawSourceDefaultInfo()
+        {
+            if (serializedObject.isEditingMultipleObjects) return;
+            var sources = GetEffectiveSources(out bool autoDetected);
+            if (!autoDetected) return; // explicit sources set — nothing to clarify
+
+            if (sources.Count == 0)
+                EditorGUILayout.HelpBox("No Source Renderers set, and no body mesh could be auto-detected on this avatar.", MessageType.Warning);
+            else
+                EditorGUILayout.HelpBox($"No Source Renderers set — will auto-detect \"{sources[0].name}\".", MessageType.Info);
+        }
+
+        // Post-decimation triangle count for the current slider value.
+        private void DrawDecimationPreview()
+        {
+            if (serializedObject.isEditingMultipleObjects) return;
+            var sources = GetEffectiveSources(out _);
+            if (sources.Count == 0) return;
+
+            float amount = serializedObject.FindProperty("DecimationAmount").floatValue;
+            UpdatePreview(sources, amount);
+            EditorGUILayout.HelpBox($"After decimation: ~{_previewAfter:N0} tris (from {_previewBefore:N0}).", MessageType.None);
+        }
+
+        // Runs the real decimator (exact count), cached so idle repaints don't recompute.
+        private void UpdatePreview(List<SkinnedMeshRenderer> sources, float amount)
+        {
+            var key = amount.ToString("F2");
+            foreach (var s in sources) key += "|" + (s.sharedMesh != null ? s.sharedMesh.GetInstanceID() : 0);
+            if (key == _previewKey) return;
+
+            int before = 0, after = 0;
+            foreach (var smr in sources)
+            {
+                var mesh = smr.sharedMesh;
+                if (mesh == null) continue;
+                for (int s = 0; s < mesh.subMeshCount; s++) before += (int)(mesh.GetIndexCount(s) / 3);
+                var dec = MeshDecimator.Decimate(mesh, amount);
+                after += (int)(dec.GetIndexCount(0) / 3);
+                DestroyImmediate(dec);
+            }
+            _previewKey = key;
+            _previewBefore = before;
+            _previewAfter = after;
         }
 
         private void DrawAddPluginButton()

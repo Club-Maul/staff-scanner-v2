@@ -2,6 +2,17 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2026-06-19
+
+### Added
+
+- New **Host** staff role, with its own `StaffScannerHost` material wired into the prefab by default.
+- Inspector now shows a live **triangle-count preview** of the mesh after decimation (exact, updates as you drag the slider), and an info box naming the **auto-detected mesh** that will be used when no Source Renderer is set.
+
+### Changed
+
+- Clearer Decimation Amount tooltip: 0 = less decimation (more triangles), 1 = more decimation (fewer triangles).
+
 ## [1.2.4] - 2026-06-18
 
 ### Fixed

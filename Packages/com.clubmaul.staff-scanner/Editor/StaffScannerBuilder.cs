@@ -564,7 +564,7 @@ namespace ClubMaul.StaffScanner.Editor
             return clip;
         }
 
-        private static SkinnedMeshRenderer AutoDetectBody(GameObject avatarRoot)
+        internal static SkinnedMeshRenderer AutoDetectBody(GameObject avatarRoot)
         {
             var descriptor = avatarRoot.GetComponent<VRCAvatarDescriptor>();
             if (descriptor != null &&
