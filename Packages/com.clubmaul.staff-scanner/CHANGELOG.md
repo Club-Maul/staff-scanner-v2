@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.7] - 2026-06-24
+
+### Fixed
+
+- The **See Others** toggle had no effect on what you saw. Scanner visibility used a network-synced parameter driven by a networked sender, so it was decided globally rather than per-viewer — toggling See Others only flipped your own broadcast and never revealed or hid other staff for you. Visibility is now resolved per-viewer: **See Others** is a local-only sender that reveals other staff's scanners to you alone, and turning it off hides them for you only. Staff-only visibility is preserved — it's now inherent (only scanner wearers carry the local sender), so the separate "viewer is staff" gate added in 1.2.6 was removed. (Staff must re-upload to apply.)
+
 ## [1.2.6] - 2026-06-19
 
 ### Fixed
