@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
+using VRC.SDK3.Avatars.ScriptableObjects;
 using VRC.SDKBase.Editor.BuildPipeline;
 using VRC.Dynamics;
 using VRC.SDK3.Dynamics.Contact.Components;
@@ -20,13 +21,14 @@ namespace ClubMaul.StaffScanner.Editor
 {
     public class StaffScannerBuilder : IVRCSDKPreprocessAvatarCallback
     {
-        // Non-synced (per-viewer): driven by each wearer's receiver from the local viewer's "See Others"
-        // sender, so visibility is decided independently on every client — see BuildReceiver.
         private const string ShowParam  = "ClubMaulShow";
         // VRChat built-in, local-only param — true only on the wearer's own client. Hides the mesh from its wearer.
         private const string LocalParam = "IsLocal";
         // Non-synced (per-viewer) param driven by the SphereView receiver — see BuildSphereReceiver.
         private const string SphereParam = "ClubMaulSphere";
+        // Non-synced (per-viewer): true only on clients whose local player also wears the scanner, so
+        // scanner visuals render for staff only — see BuildStaffReceiver.
+        private const string StaffParam  = "ClubMaulStaffView";
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
@@ -112,12 +114,27 @@ namespace ClubMaul.StaffScanner.Editor
 
             var controller = BuildAnimatorController(avatarRoot, generated, sphereTargets);
 
+            var expParams = ScriptableObject.CreateInstance<VRCExpressionParameters>();
+            expParams.parameters = new[]
+            {
+                new VRCExpressionParameters.Parameter
+                {
+                    name          = ShowParam,
+                    valueType     = VRCExpressionParameters.ValueType.Bool,
+                    saved         = false,
+                    defaultValue  = 0f,
+                    networkSynced = true
+                }
+            };
+
             var fc = FuryComponents.CreateFullController(avatarRoot);
             fc.AddController(controller, VRCAvatarDescriptor.AnimLayerType.FX);
-            // ShowParam (and SphereParam) are receiver-driven and deliberately NOT network-synced: kept out
-            // of VRCExpressionParameters so every client evaluates visibility locally (per-viewer). Declared
-            // global so VRCFury leaves the names un-prefixed — the contact receivers drive them directly.
+            fc.AddParams(expParams);
+            // Global so VRCFury doesn't rename it — keeps other Club Maul tools in sync.
             fc.AddGlobalParam(ShowParam);
+            // Receiver-driven, left out of expParams so it stays local (per-viewer); un-prefix the name.
+            fc.AddGlobalParam(StaffParam);
+
             if (sphere != null) fc.AddGlobalParam(SphereParam);
         }
 
@@ -168,6 +185,7 @@ namespace ClubMaul.StaffScanner.Editor
         private const float  SenderRadius   = 0.5f;
         private const string ContactTag     = "ClubMaul/Contact";
         private const string SphereTag      = "ClubMaul/SphereView";
+        private const string StaffTag       = "ClubMaul/Staff";
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 
@@ -178,18 +196,12 @@ namespace ClubMaul.StaffScanner.Editor
             var menuHost = comp.gameObject;
             var menuPath = comp.GetMenuPath();
 
-            // Core contacts. Both pieces are local-only and ShowParam is non-synced, so visibility is
-            // resolved per-viewer:
-            //   • Broadcast Self — the wearer's receiver. While on, the wearer's mesh can be revealed to any
-            //     viewer whose local "See Others" sender reaches it (on that viewer's client only).
-            //   • See Others — the viewer's local-only sender. While on, it trips other scanner wearers'
-            //     receivers on this client alone, revealing their meshes to this viewer and no one else.
-            // Because the sender is local-only, only fellow scanner wearers carry one, so non-staff can never
-            // trip a receiver — the scanner stays staff-only without a dedicated gate.
+            // Core contacts — always built.
             var receiver = BuildReceiver(contacts);
             AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
-            var sender = BuildSender(contacts, "Sender", ContactTag, localOnly: true);
+            // Networked (not local-only) so other players' receivers can detect it cross-client.
+            var sender = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
             AddMenuToggle(menuHost, menuPath, "See Others", sender, saved: true, defaultOn: true);
 
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
@@ -197,6 +209,12 @@ namespace ClubMaul.StaffScanner.Editor
             var sphereSender = BuildSender(contacts, "SphereViewSender", SphereTag, localOnly: true);
             AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
             BuildSphereReceiver(contacts);
+
+            // Staff-only visibility: every wearer broadcasts a local-only "I'm staff" sender; an always-on
+            // receiver drives the non-synced ClubMaulStaffView, so scanner visuals render only for viewers
+            // who also wear the scanner (non-staff never see them).
+            BuildStaffSender(contacts);
+            BuildStaffReceiver(contacts);
 
             // Optional world features — Beast role only.
             bool isBeast = comp.Role == StaffRole.Beast;
@@ -309,8 +327,7 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        // On each wearer, drives the non-synced ShowParam from any viewer's local "See Others" sender, so the
-        // wearer's mesh appears to that viewer only. Enabled by "Broadcast Self".
+        // Drives ShowParam when it detects another scanner user's sender. Enabled by "Broadcast Self".
         private static GameObject BuildReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "Receiver");
@@ -356,6 +373,39 @@ namespace ClubMaul.StaffScanner.Editor
             receiver.allowOthers   = true;
             receiver.receiverType  = ContactReceiver.ReceiverType.Constant;
             receiver.parameter     = SphereParam;
+
+            return go;
+        }
+
+        // Always-on, local-only sender marking the wearer as staff on their own client.
+        private static GameObject BuildStaffSender(Transform parent)
+        {
+            var go = BuildSender(parent, "StaffSelfSender", StaffTag, localOnly: true);
+            go.SetActive(true); // no toggle — every scanner wearer counts as a staff viewer
+            return go;
+        }
+
+        // Drives the non-synced ClubMaulStaffView from the local player's StaffSelfSender. Always active;
+        // true only on clients whose local player wears the scanner — i.e. staff viewers.
+        private static GameObject BuildStaffReceiver(Transform parent)
+        {
+            var existing = FindChildByName(parent, "StaffViewReceiver");
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+
+            var go = new GameObject("StaffViewReceiver");
+            go.transform.SetParent(parent, false);
+
+            var receiver = go.AddComponent<VRCContactReceiver>();
+            receiver.shapeType     = ContactBase.ShapeType.Sphere;
+            receiver.radius        = SenderRadius;
+            receiver.position      = Vector3.zero;
+            receiver.rotation      = Quaternion.identity;
+            receiver.localOnly     = false;
+            receiver.collisionTags = new List<string> { StaffTag };
+            receiver.allowSelf     = false;
+            receiver.allowOthers   = true;
+            receiver.receiverType  = ContactReceiver.ReceiverType.Constant;
+            receiver.parameter     = StaffParam;
 
             return go;
         }
@@ -487,6 +537,7 @@ namespace ClubMaul.StaffScanner.Editor
             var controller = new AnimatorController { name = "StaffScanner_FX" };
             controller.AddParameter(ShowParam, AnimatorControllerParameterType.Bool);
             controller.AddParameter(LocalParam, AnimatorControllerParameterType.Bool);
+            controller.AddParameter(StaffParam, AnimatorControllerParameterType.Bool);
             if (hasSphere) controller.AddParameter(SphereParam, AnimatorControllerParameterType.Bool);
 
             // Full mesh: shown when scanning and not the wearer. Suppressed in sphere mode (if available).
@@ -527,12 +578,14 @@ namespace ClubMaul.StaffScanner.Editor
             toOn.duration    = 0f;
             toOn.AddCondition(AnimatorConditionMode.If,    0, ShowParam);
             toOn.AddCondition(AnimatorConditionMode.IfNot, 0, LocalParam);
+            toOn.AddCondition(AnimatorConditionMode.If,    0, StaffParam);
             if (sphereMode.HasValue)
                 toOn.AddCondition(sphereMode.Value ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0, SphereParam);
 
             // Leave "On" if any single gate fails (separate transitions == OR).
             AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, ShowParam);
             AddOffTransition(onState, offState, AnimatorConditionMode.If,    LocalParam);
+            AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, StaffParam);
             if (sphereMode.HasValue)
                 AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereParam);
         }
