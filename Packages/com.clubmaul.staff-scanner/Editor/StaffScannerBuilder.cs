@@ -200,9 +200,11 @@ namespace ClubMaul.StaffScanner.Editor
             var receiver = BuildReceiver(contacts);
             AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
-            // Networked (not local-only) so other players' receivers can detect it cross-client.
-            var sender = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
-            AddMenuToggle(menuHost, menuPath, "See Others", sender, saved: true, defaultOn: true);
+            // Always-on presence beacon: a networked sender so every wearer's "Broadcast Self" receiver has a
+            // field to detect (that's what flips the synced ClubMaulShow). It only lets OTHERS be detected — it
+            // never reveals its own wearer — so it carries no toggle.
+            var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
+            presence.SetActive(true);
 
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
             // enabling it shows other scanners as spheres to you only.
@@ -210,10 +212,13 @@ namespace ClubMaul.StaffScanner.Editor
             AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
             BuildSphereReceiver(contacts);
 
-            // Staff-only visibility: every wearer broadcasts a local-only "I'm staff" sender; an always-on
-            // receiver drives the non-synced ClubMaulStaffView, so scanner visuals render only for viewers
-            // who also wear the scanner (non-staff never see them).
-            BuildStaffSender(contacts);
+            // "See Others" is the per-viewer visibility gate. It drives a local-only staff sender; an always-on
+            // receiver on every wearer turns that into the non-synced ClubMaulStaffView, which gates the mesh.
+            // On → you (a fellow scanner wearer) see broadcasting staff; off → you see none. Because the sender
+            // is local-only and only scanner wearers carry one, non-staff never trip it, so the scanner stays
+            // staff-only either way.
+            var seeOthersSender = BuildSender(contacts, "StaffSelfSender", StaffTag, localOnly: true);
+            AddMenuToggle(menuHost, menuPath, "See Others", seeOthersSender, saved: true, defaultOn: true);
             BuildStaffReceiver(contacts);
 
             // Optional world features — Beast role only.
@@ -377,16 +382,8 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        // Always-on, local-only sender marking the wearer as staff on their own client.
-        private static GameObject BuildStaffSender(Transform parent)
-        {
-            var go = BuildSender(parent, "StaffSelfSender", StaffTag, localOnly: true);
-            go.SetActive(true); // no toggle — every scanner wearer counts as a staff viewer
-            return go;
-        }
-
-        // Drives the non-synced ClubMaulStaffView from the local player's StaffSelfSender. Always active;
-        // true only on clients whose local player wears the scanner — i.e. staff viewers.
+        // Drives the non-synced ClubMaulStaffView from the local player's "See Others" staff sender. Always
+        // active; true only on clients whose local player wears the scanner with "See Others" on.
         private static GameObject BuildStaffReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "StaffViewReceiver");

@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.9] - 2026-06-24
+
+### Fixed
+
+- **See Others** now actually controls what you see. Previously, turning it off still left other staff's scanner meshes visible to you, because your view was gated by an always-on "viewer is staff" sender while the toggle only affected your own broadcast. The toggle now drives that per-viewer staff sender directly: off hides all other scanner meshes for you, on shows broadcasting staff again. Staff-only filtering is unchanged — the gate's contacts are the same proven design, so non-staff still never see the scanner. The presence beacon other wearers detect is now always-on (it never exposes its own wearer). (Staff must re-upload to apply.)
+
 ## [1.2.8] - 2026-06-24
 
 ### Fixed
