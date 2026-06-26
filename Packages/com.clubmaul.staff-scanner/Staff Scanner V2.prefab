@@ -52,8 +52,8 @@ MonoBehaviour:
   GeneratedObjectName: StaffScannerMesh
   MenuPath: Staff Scanner V2
   Plugins: []
-  Slow: 0
-  Rumble: 0
+  Slow: 1
+  Rumble: 1
 --- !u!114 &4884770533623215114
 MonoBehaviour:
   m_ObjectHideFlags: 0

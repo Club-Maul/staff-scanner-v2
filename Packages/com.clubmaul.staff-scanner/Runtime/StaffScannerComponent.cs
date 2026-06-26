@@ -44,11 +44,11 @@ namespace ClubMaul.StaffScanner
         public List<StaffScannerPlugin> Plugins = new List<StaffScannerPlugin>();
 
         [Header("Universal")]
-        [Tooltip("Add the 'Slow' contact sender.")]
-        public bool Slow = false;
+        [Tooltip("Add the 'Slow' contact sender. On by default; only applied for the Beast role.")]
+        public bool Slow = true;
 
-        [Tooltip("Add the 'Rumble' contact sender.")]
-        public bool Rumble = false;
+        [Tooltip("Add the 'Rumble' contact sender. On by default; only applied for the Beast role.")]
+        public bool Rumble = true;
 
         /// <summary>
         /// A world feature: object name, collision tag, and whether it's checked. When enabled, the

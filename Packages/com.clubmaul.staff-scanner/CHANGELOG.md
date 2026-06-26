@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-26
+
+### Changed
+
+- The **Slow** and **Rumble** world features are now enabled by default. (They only ever apply to the Beast role, so this is effectively "on by default for Beasts.")
+- Role materials are now resolved automatically at build time, so the component no longer has per-role Material fields to wire up — dropping it onto an avatar (or adding it manually) just works. The inspector was tidied up with grouped headers in the process.
+
 ## [1.2.9] - 2026-06-24
 
 ### Fixed
