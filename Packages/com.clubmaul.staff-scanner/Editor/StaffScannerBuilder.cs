@@ -22,13 +22,9 @@ namespace ClubMaul.StaffScanner.Editor
     public class StaffScannerBuilder : IVRCSDKPreprocessAvatarCallback
     {
         private const string ShowParam  = "ClubMaulShow";
-        // VRChat built-in, local-only param — true only on the wearer's own client. Hides the mesh from its wearer.
-        private const string LocalParam = "IsLocal";
-        // Non-synced (per-viewer) param driven by the SphereView receiver — see BuildSphereReceiver.
-        private const string SphereParam = "ClubMaulSphere";
-        // Non-synced (per-viewer): true only on clients whose local player also wears the scanner, so
-        // scanner visuals render for staff only — see BuildStaffReceiver.
-        private const string StaffParam  = "ClubMaulStaffView";
+        private const string LocalParam = "IsLocal";      // VRChat built-in; true only on the wearer's own client.
+        private const string SphereParam = "ClubMaulSphere";    // Non-synced (per-viewer); see BuildSphereReceiver.
+        private const string StaffParam  = "ClubMaulStaffView"; // Non-synced (per-viewer) staff-only gate; see BuildStaffReceiver.
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
@@ -184,13 +180,15 @@ namespace ClubMaul.StaffScanner.Editor
         // The group sits at world origin (VRCParentConstraint) so all scanner users' contacts coincide.
         private const float  SenderRadius   = 0.5f;
         private const string ContactTag     = "ClubMaul/Contact";
+        // Old V1 scanner's tag; the presence beacon also answers it so V1 users see V2 wearers (one-way —
+        // V2 meshes stay staff-only).
+        private const string LegacyContactTag = "ClubMaulShow";
         private const string SphereTag      = "ClubMaul/SphereView";
         private const string StaffTag       = "ClubMaul/Staff";
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 
-        // Role → material GUID. Resolved at build time (the runtime component can't use AssetDatabase),
-        // so adding the component never needs material wiring. GUIDs follow the .mat assets if renamed/moved.
+        // Role → material GUID, resolved at build time so the component needs no material wiring.
         private static readonly Dictionary<StaffRole, string> RoleMaterialGuids = new Dictionary<StaffRole, string>
         {
             { StaffRole.Beast,       "b9cded208962127459c7733a36f932d8" }, // Materials/StaffScannerBeast.mat
@@ -226,10 +224,10 @@ namespace ClubMaul.StaffScanner.Editor
             var receiver = BuildReceiver(contacts);
             AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
-            // Always-on presence beacon: a networked sender so every wearer's "Broadcast Self" receiver has a
-            // field to detect (that's what flips the synced ClubMaulShow). It only lets OTHERS be detected — it
-            // never reveals its own wearer — so it carries no toggle.
+            // Always-on networked beacon so other wearers' "Broadcast Self" receivers detect this wearer
+            // (flips the synced ClubMaulShow). Also answers the old V1 tag for cross-version visibility.
             var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
+            presence.GetComponent<VRCContactSender>().collisionTags.Add(LegacyContactTag);
             presence.SetActive(true);
 
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
@@ -238,11 +236,8 @@ namespace ClubMaul.StaffScanner.Editor
             AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
             BuildSphereReceiver(contacts);
 
-            // "See Others" is the per-viewer visibility gate. It drives a local-only staff sender; an always-on
-            // receiver on every wearer turns that into the non-synced ClubMaulStaffView, which gates the mesh.
-            // On → you (a fellow scanner wearer) see broadcasting staff; off → you see none. Because the sender
-            // is local-only and only scanner wearers carry one, non-staff never trip it, so the scanner stays
-            // staff-only either way.
+            // "See Others" — per-viewer gate: a local-only staff sender that each wearer's receiver turns into
+            // the non-synced ClubMaulStaffView. Off → you see nothing; only wearers carry it, so it's staff-only.
             var seeOthersSender = BuildSender(contacts, "StaffSelfSender", StaffTag, localOnly: true);
             AddMenuToggle(menuHost, menuPath, "See Others", seeOthersSender, saved: true, defaultOn: true);
             BuildStaffReceiver(contacts);
@@ -383,8 +378,7 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        // Drives the non-synced ClubMaulSphere from any local "Sphere View" sender. Always active so it
-        // evaluates per-viewer — that's what makes others render as spheres only for whoever enabled it.
+        // Drives non-synced ClubMaulSphere from any local "Sphere View" sender; always active (per-viewer).
         private static GameObject BuildSphereReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "SphereViewReceiver");
@@ -408,8 +402,7 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        // Drives the non-synced ClubMaulStaffView from the local player's "See Others" staff sender. Always
-        // active; true only on clients whose local player wears the scanner with "See Others" on.
+        // Drives non-synced ClubMaulStaffView from the local viewer's "See Others" sender; always active (per-viewer).
         private static GameObject BuildStaffReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "StaffViewReceiver");
@@ -433,9 +426,7 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        // VRCFury menu Toggle (synced param) that turns 'target' on while the menu item is on.
-        // 'menuPath' is the folder the item lives under. When holdButton is set, the menu control
-        // is a momentary Button (on only while held) instead of a sticky toggle.
+        // VRCFury menu Toggle that turns 'target' on while the item is on. holdButton = momentary Button.
         private static void AddMenuToggle(GameObject host, string menuPath, string itemName, GameObject target,
                                           bool saved = false, bool defaultOn = false, bool holdButton = false)
         {

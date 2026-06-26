@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-06-26
+
+### Added
+
+- Cross-version visibility with the old V1 scanner: the V2 presence beacon now also answers V1's contact tag, so anyone still on the V1 scanner can see V2 staff. V2's own staff-only filtering is unchanged. (Staff must re-upload to apply.)
+
 ## [1.3.0] - 2026-06-26
 
 ### Changed
