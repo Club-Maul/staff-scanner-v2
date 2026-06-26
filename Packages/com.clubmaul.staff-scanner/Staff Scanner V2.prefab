@@ -48,10 +48,6 @@ MonoBehaviour:
   SourceRenderers:
   - {fileID: 0}
   Role: 0
-  BeastMaterial: {fileID: 2100000, guid: b9cded208962127459c7733a36f932d8, type: 2}
-  SecurityMaterial: {fileID: 2100000, guid: 31c019a5fcd06f94c8690b0a1c7654de, type: 2}
-  PhotographyMaterial: {fileID: 2100000, guid: e9bc67de4154dfb4894c085f19573cb4, type: 2}
-  HostMaterial: {fileID: 2100000, guid: e73a3195f11bd1a4282c197de2cb3d6e, type: 2}
   DecimationAmount: 0.5
   GeneratedObjectName: StaffScannerMesh
   MenuPath: Staff Scanner V2

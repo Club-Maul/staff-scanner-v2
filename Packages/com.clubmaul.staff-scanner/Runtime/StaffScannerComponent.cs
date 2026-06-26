@@ -20,23 +20,13 @@ namespace ClubMaul.StaffScanner
     {
         public const string Version = "1.0.0";
 
+        [Header("Mesh")]
         [Tooltip("Meshes to duplicate. If empty, auto-detects the avatar's body mesh.")]
         public List<SkinnedMeshRenderer> SourceRenderers = new List<SkinnedMeshRenderer>();
 
-        [Tooltip("Which role's material is applied to the scanner mesh.")]
+        [Tooltip("Which role's material is applied to the scanner mesh. The material is resolved by the " +
+                 "build-time generator, so the component needs no material wiring.")]
         public StaffRole Role = StaffRole.Beast;
-
-        [Tooltip("Material for the Beast role.")]
-        public Material BeastMaterial;
-
-        [Tooltip("Material for the Security role.")]
-        public Material SecurityMaterial;
-
-        [Tooltip("Material for the Photography role.")]
-        public Material PhotographyMaterial;
-
-        [Tooltip("Material for the Host role.")]
-        public Material HostMaterial;
 
         [Tooltip("Decimation strength: 0 = less decimation (more triangles), 1 = more decimation (fewer triangles).")]
         [Range(0f, 1f)]
@@ -45,10 +35,11 @@ namespace ClubMaul.StaffScanner
         [Tooltip("Name of the generated mesh object (source name appended when multiple).")]
         public string GeneratedObjectName = "StaffScannerMesh";
 
+        [Header("Menu")]
         [Tooltip("Menu path the toggles are written under. Use slashes for sub-folders.")]
         public string MenuPath = "Staff Scanner V2";
 
-        [Header("Plugins")]
+        [Space]
         [Tooltip("Plugin assets (e.g. Suburbia). Each adds world contacts like the World Feature checkboxes.")]
         public List<StaffScannerPlugin> Plugins = new List<StaffScannerPlugin>();
 
@@ -85,16 +76,5 @@ namespace ClubMaul.StaffScanner
         /// <summary>Menu path the toggles are written under, falling back to the default if blank.</summary>
         public string GetMenuPath() =>
             string.IsNullOrWhiteSpace(MenuPath) ? "Staff Scanner V2" : MenuPath.Trim().Trim('/');
-
-        public Material GetMaterialForRole()
-        {
-            switch (Role)
-            {
-                case StaffRole.Security:    return SecurityMaterial;
-                case StaffRole.Photography: return PhotographyMaterial;
-                case StaffRole.Host:        return HostMaterial;
-                default:                    return BeastMaterial;
-            }
-        }
     }
 }

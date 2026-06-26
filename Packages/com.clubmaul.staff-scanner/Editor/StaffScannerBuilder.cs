@@ -73,10 +73,10 @@ namespace ClubMaul.StaffScanner.Editor
             // before any early-out below can skip the rest of the build.
             ApplyWorldFeatures(comp);
 
-            var material = comp.GetMaterialForRole();
+            var material = ResolveRoleMaterial(comp.Role);
             if (material == null)
             {
-                Debug.LogWarning($"[StaffScanner] No material assigned for role {comp.Role} on {comp.gameObject.name}. Skipping.");
+                Debug.LogWarning($"[StaffScanner] Material for role {comp.Role} not found on {comp.gameObject.name}. Skipping.");
                 return;
             }
 
@@ -188,6 +188,32 @@ namespace ClubMaul.StaffScanner.Editor
         private const string StaffTag       = "ClubMaul/Staff";
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
+
+        // Role → material GUID. Resolved at build time (the runtime component can't use AssetDatabase),
+        // so adding the component never needs material wiring. GUIDs follow the .mat assets if renamed/moved.
+        private static readonly Dictionary<StaffRole, string> RoleMaterialGuids = new Dictionary<StaffRole, string>
+        {
+            { StaffRole.Beast,       "b9cded208962127459c7733a36f932d8" }, // Materials/StaffScannerBeast.mat
+            { StaffRole.Security,    "31c019a5fcd06f94c8690b0a1c7654de" }, // Materials/StaffScannerSecurity.mat
+            { StaffRole.Photography, "e9bc67de4154dfb4894c085f19573cb4" }, // Materials/StaffScannerPhotography.mat
+            { StaffRole.Host,        "e73a3195f11bd1a4282c197de2cb3d6e" }, // Materials/StaffScannerHost.mat
+        };
+
+        // Loads the role's material from its GUID. Null (with a warning) if the GUID can't be resolved.
+        private static Material ResolveRoleMaterial(StaffRole role)
+        {
+            if (!RoleMaterialGuids.TryGetValue(role, out var guid))
+            {
+                Debug.LogWarning($"[StaffScanner] No material GUID registered for role {role}.");
+                return null;
+            }
+
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var material = string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+                Debug.LogWarning($"[StaffScanner] Material for role {role} (GUID {guid}) could not be loaded.");
+            return material;
+        }
 
         private static void ApplyWorldFeatures(StaffScannerComponent comp)
         {
