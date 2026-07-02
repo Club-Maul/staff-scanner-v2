@@ -2,6 +2,19 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-07-02
+
+### Changed
+
+- The decimator now drops exact duplicate triangles (same corners, same winding) produced by vertex clustering — slightly fewer triangles for identical visuals.
+- The inspector's triangle-count preview now runs a count-only pass instead of building and destroying a full mesh, so dragging the Decimation Amount slider is much smoother on heavy meshes. The avatar body-mesh auto-detect is also resolved once per inspector repaint instead of twice.
+
+### Fixed
+
+- **Wearing V2 no longer exposes V1 users' orbs to the whole instance.** The V1-compat tag added in 1.3.1 rode the always-on *networked* presence beacon; V1's contact receiver is networked, always-on, and its orb is gated on nothing else, so any V2 wearer in the instance lit every V1 orb up on every client — including players with no scanner at all. The V1 tag now rides a **local-only** sender tied to the **See Others** toggle instead: V2 wearers (with See Others on) still see V1 users' orbs, on their own client only, and nobody else ever does. Note this also corrects 1.3.1's description — the tag lights up V1 wearers' orbs; it never could reveal V2 meshes to V1 users, and V2 meshes remain gated to V2 wearers only. (Staff must re-upload to apply.)
+- The Modular Avatar compatibility stub (`AvatarTagBridge`) is now actually compiled out when Modular Avatar is installed — the `MA_VRCSDK3_AVATARS` guard existed but was never defined because the runtime asmdef had no version define for it.
+- The `StaffScannerComponent.Version` constant (stuck at 1.0.0) now tracks the package version.
+
 ## [1.3.1] - 2026-06-26
 
 ### Added

@@ -1,5 +1,5 @@
 // Staff Scanner V2 — Build-time generator
-// by Loveseal | v1.0.0
+// by Loveseal
 
 using System;
 using System.Collections.Generic;
@@ -180,8 +180,10 @@ namespace ClubMaul.StaffScanner.Editor
         // The group sits at world origin (VRCParentConstraint) so all scanner users' contacts coincide.
         private const float  SenderRadius   = 0.5f;
         private const string ContactTag     = "ClubMaul/Contact";
-        // Old V1 scanner's tag; the presence beacon also answers it so V1 users see V2 wearers (one-way —
-        // V2 meshes stay staff-only).
+        // Old V1 scanner's tag, sent by a LOCAL-ONLY sender so V2 wearers see V1 users' orbs on
+        // their own client only. NEVER put this tag on a networked sender: V1's receiver is
+        // networked, always-on, and its orb is gated on nothing else, so a networked sender
+        // lights every V1 orb up for the whole instance — scanner or not.
         private const string LegacyContactTag = "ClubMaulShow";
         private const string SphereTag      = "ClubMaul/SphereView";
         private const string StaffTag       = "ClubMaul/Staff";
@@ -225,9 +227,8 @@ namespace ClubMaul.StaffScanner.Editor
             AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
             // Always-on networked beacon so other wearers' "Broadcast Self" receivers detect this wearer
-            // (flips the synced ClubMaulShow). Also answers the old V1 tag for cross-version visibility.
+            // (flips the synced ClubMaulShow).
             var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
-            presence.GetComponent<VRCContactSender>().collisionTags.Add(LegacyContactTag);
             presence.SetActive(true);
 
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
@@ -238,8 +239,12 @@ namespace ClubMaul.StaffScanner.Editor
 
             // "See Others" — per-viewer gate: a local-only staff sender that each wearer's receiver turns into
             // the non-synced ClubMaulStaffView. Off → you see nothing; only wearers carry it, so it's staff-only.
+            // A second local-only sender answers the old V1 tag, so the same toggle also reveals V1 users'
+            // orbs — to this wearer alone (V1 receivers are world-locked at origin too, so they always overlap).
             var seeOthersSender = BuildSender(contacts, "StaffSelfSender", StaffTag, localOnly: true);
-            AddMenuToggle(menuHost, menuPath, "See Others", seeOthersSender, saved: true, defaultOn: true);
+            var legacySender    = BuildSender(contacts, "LegacyViewSender", LegacyContactTag, localOnly: true);
+            AddMenuToggle(menuHost, menuPath, "See Others", seeOthersSender, saved: true, defaultOn: true,
+                          extraTarget: legacySender);
             BuildStaffReceiver(contacts);
 
             // Optional world features — Beast role only.
@@ -428,14 +433,17 @@ namespace ClubMaul.StaffScanner.Editor
 
         // VRCFury menu Toggle that turns 'target' on while the item is on. holdButton = momentary Button.
         private static void AddMenuToggle(GameObject host, string menuPath, string itemName, GameObject target,
-                                          bool saved = false, bool defaultOn = false, bool holdButton = false)
+                                          bool saved = false, bool defaultOn = false, bool holdButton = false,
+                                          GameObject extraTarget = null)
         {
             var toggle = FuryComponents.CreateToggle(host);
             toggle.SetMenuPath($"{menuPath}/{itemName}");
             if (saved)      toggle.SetSaved();
             if (defaultOn)  toggle.SetDefaultOn();
             if (holdButton) SetHoldButton(toggle);
-            toggle.GetActions().AddTurnOn(target);
+            var actions = toggle.GetActions();
+            actions.AddTurnOn(target);
+            if (extraTarget != null) actions.AddTurnOn(extraTarget);
         }
 
         // 'holdButton' (Button mode) isn't in VRCFury's public API, so set it on the underlying
