@@ -227,7 +227,11 @@ namespace ClubMaul.StaffScanner.Editor
             AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
             // Always-on networked beacon so other wearers' "Broadcast Self" receivers detect this wearer
-            // (flips the synced ClubMaulShow).
+            // (flips the synced ClubMaulShow). Must NOT be localOnly: a local-only sender exists solely
+            // on this wearer's own client, and the receivers that need to detect it run on *other*
+            // wearers' clients — localOnly here means nobody's scanner ever shows (the 1.2.1 bug).
+            // Safe to network: it carries no viewer-gating tag, so it can only flip ClubMaulShow, and
+            // the mesh still needs the staff-only ClubMaulStaffView gate before anyone sees anything.
             var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
             presence.SetActive(true);
 
