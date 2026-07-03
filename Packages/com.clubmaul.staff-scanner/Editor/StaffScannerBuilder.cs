@@ -21,9 +21,9 @@ namespace ClubMaul.StaffScanner.Editor
 {
     public class StaffScannerBuilder : IVRCSDKPreprocessAvatarCallback
     {
-        private const string ShowParam  = "ClubMaulShow";
+        private const string ShowParam  = "ClubMaul/Scanner/Show";
         private const string LocalParam = "IsLocal";      // VRChat built-in; true only on the wearer's own client.
-        private const string SphereParam = "ClubMaulSphere";    // Non-synced (per-viewer); see BuildSphereReceiver.
+        private const string SphereParam = "Internal/Sphere Mode";    // Non-synced (per-viewer); see BuildSphereReceiver.
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
@@ -125,10 +125,10 @@ namespace ClubMaul.StaffScanner.Editor
             var fc = FuryComponents.CreateFullController(avatarRoot);
             fc.AddController(controller, VRCAvatarDescriptor.AnimLayerType.FX);
             fc.AddParams(expParams);
-            // Global so VRCFury doesn't rename it — keeps other Club Maul tools in sync.
-            fc.AddGlobalParam(ShowParam);
 
-            if (sphere != null) fc.AddGlobalParam(SphereParam);
+            // This parameter is exposed to other systems. For example, a hunter avatar could
+            // react to it by turning off its post-processing effects.
+            fc.AddGlobalParam(ShowParam);
         }
 
         // Non-skinned sphere on the humanoid Hips with the scanner material. Default-off; null if non-humanoid.
@@ -176,11 +176,11 @@ namespace ClubMaul.StaffScanner.Editor
         // plus a sender per checked World Feature and per plugin contact. Each gets a VRCFury menu toggle.
         // The group sits at world origin (VRCParentConstraint) so all scanner users' contacts coincide.
         private const float  SenderRadius   = 0.5f;
-        private const string ContactTag     = "ClubMaul/Contact";
+        private const string ContactTag     = "ClubMaul/Scanner/Show";
         // Old V1 scanner's tag; the presence beacon also answers it so V1 users see V2 wearers (one-way —
         // V2 meshes stay staff-only).
         private const string LegacyContactTag = "ClubMaulShow";
-        private const string SphereTag      = "ClubMaul/SphereView";
+        private const string SphereTag      = "ClubMaul/Scanner/SphereView";
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 

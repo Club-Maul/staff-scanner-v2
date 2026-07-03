@@ -2,6 +2,15 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- BREAKING: The contact receiver now looks for ClubMaul/Scanner/Show
+- BREAKING: The sphere receiver now looks for ClubMaul/Scanner/SphereView
+- BREAKING: ClubMaulShow is now ClubMaul/Scanner/Show
+- BREAKING: ClubMaulSphere is no longer a global parameter
+
 ## [1.3.2] - 2026-07-03
 
 ### Changed
