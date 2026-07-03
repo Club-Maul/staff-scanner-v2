@@ -62,3 +62,7 @@ crashlytics-build.properties
 Assets/PackageMakerWindowData.asset*
 .idea
 .vscode
+
+# Staff Scanner build leftovers (decimated mesh temp assets)
+Packages/com.clubmaul.staff-scanner/Misc/_TempBuild/
+Packages/com.clubmaul.staff-scanner/Misc/_TempBuild.meta
