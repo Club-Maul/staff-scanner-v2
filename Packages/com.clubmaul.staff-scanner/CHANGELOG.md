@@ -2,6 +2,26 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-07-02
+
+### Added
+
+- **V1 users can now see V2 wearers — for real this time.** It turns out V1's contact sender is animated on `IsLocal`, so it only ever exists on the V1 wearer's own client (a hand-rolled local-only sender). A new `LegacyShowReceiver` on V2 detects it and shows the wearer's sphere (or the full mesh on avatars without a sphere) via the per-viewer `ClubMaulLegacyShow` param — so it can only ever appear to V1 staff who have their V1 Sender toggle on, never to anyone without a scanner. It's gated by **Broadcast Self**, so opting out hides you from V1 staff too, and V2 viewers are unaffected (the staff gate keeps them on the normal mesh/sphere logic). (Staff must re-upload to apply.)
+
+  > **1.3.1 coexistence:** 1.3.1's networked, always-on beacon carries the same `ClubMaulShow` tag as V1's sender, which would make one 1.3.1 upload in the instance show every broadcasting 1.3.2 wearer to everyone. The legacy receiver is therefore offset 2 m from the world origin — inside V1's large (~3.7 m) sender sphere but out of reach of 1.3.1's small (0.5 m) beacon — so 1.3.1 wearers don't expose updated wearers, and no coordinated re-upload is required. The Contacts group is also **scale-constrained to the world anchor**, so the wearer's own avatar scale (including in-game scaling) can't shift any contact geometry; the discrimination only bends with the *other* party's scale: a 1.3.1 wearer scaled above ~3× re-opens the exposure while present, and a V1 wearer shrunk below ~0.4× can't see V2 wearers. Note that 1.3.1's own defect — lighting every V1 orb for the whole instance — lives in the 1.3.1 uploads themselves and persists until those staff re-upload, so updating is still strongly recommended, just no longer a flag-day requirement.
+
+### Changed
+
+- **Broadcast Self now drives the synced `ClubMaulShow` directly** (via the toggle's own parameter) instead of enabling a contact receiver that detected other wearers' presence beacons. The receiver round trip was redundant — any viewer who can pass the staff gate is a wearer themselves, so "another wearer is present" was always true whenever it mattered. Side benefits: V1 staff can now see a V2 wearer who is the *only* V2 user in the instance, one networked contact receiver is gone, and un-broadcasting no longer depends on how a disabled receiver treats its parameter — the toggle writes the value explicitly. The presence beacon is kept so pre-1.3.2 wearers still detect current ones (and worlds can detect staff); the `ClubMaulShow` name and syncing are unchanged for external tools, though it now means "Broadcast Self is on" rather than "another wearer is present". (Staff must re-upload to apply.)
+- The decimator now drops exact duplicate triangles (same corners, same winding) produced by vertex clustering — slightly fewer triangles for identical visuals.
+- The inspector's triangle-count preview now runs a count-only pass instead of building and destroying a full mesh, so dragging the Decimation Amount slider is much smoother on heavy meshes. The avatar body-mesh auto-detect is also resolved once per inspector repaint instead of twice.
+
+### Fixed
+
+- **Wearing V2 no longer exposes V1 users' orbs to the whole instance.** The V1-compat tag added in 1.3.1 rode the always-on *networked* presence beacon; V1's contact receiver is networked, always-on, and its orb is gated on nothing else, so any V2 wearer in the instance lit every V1 orb up on every client — including players with no scanner at all. The V1 tag now rides a **local-only** sender tied to the **See Others** toggle instead: V2 wearers (with See Others on) still see V1 users' orbs, on their own client only, and nobody else ever does. Note this also corrects 1.3.1's description — the tag lights up V1 wearers' orbs; it never could reveal V2 meshes to V1 users, and V2 meshes remain gated to V2 wearers only. (Staff must re-upload to apply.)
+- The Modular Avatar compatibility stub (`AvatarTagBridge`) is now actually compiled out when Modular Avatar is installed — the `MA_VRCSDK3_AVATARS` guard existed but was never defined because the runtime asmdef had no version define for it.
+- The `StaffScannerComponent.Version` constant (stuck at 1.0.0) now tracks the package version.
+
 ## [1.3.1] - 2026-06-26
 
 ### Added

@@ -2,21 +2,22 @@ Thanks for downloading the Staff Scanner V2! As a reminder, this is REQUIRED for
 
 INSTALLATION:
 - Drag and drop the "Staff Scanner V2" prefab into an empty space in your hierarchy, THEN onto your avatar
-- Under "Source Renderers", drag and drop all meshes that you would like to appear to others using the scanner (Your body is the important one)
-- Pick your role in the dropdown (Beast, Security, or Photography)
-- Adjust "Decimation Amount" to your liking (0.5 is recommended)
-- Under "World Features", tick any features you want (e.g. Slow, Rumble, Unique). Each checked box adds that feature's contact sender plus an in-game menu toggle when you build, so you can switch it on/off and compatible worlds can react. Leave them unchecked to skip.
+- Under "Source Renderers", drag and drop all meshes that you would like to appear to others using the scanner (Your body is the important one). Left empty, your body mesh is auto-detected - the inspector shows which one.
+- Pick your role in the dropdown (Beast, Security, Photography, or Host)
+- Adjust "Decimation Amount" to your liking (0.5 is recommended - the inspector previews the resulting triangle count)
+- Beasts only: the "Universal" features (Slow and Rumble, on by default) each add a contact sender plus an in-game menu toggle when you build, so you can switch them on/off and compatible worlds can react. Untick them to skip. Plugins (e.g. the bundled Suburbia asset) add more world contacts the same way.
 - All done!
 
 HOW TO USE:
 - Navigate to "Staff Scanner V2" in your avatar menu
-- "Broadcast Self" to let others using the scanner see you
-- "See Others" to show others using the scanner
-- Each World Feature you enabled (e.g. Slow, Rumble, Unique) gets its own toggle in this menu — flip it to turn that feature's contact on or off
+- "Broadcast Self" to let others using the scanner (V2 or the old V1) see you
+- "See Others" to show others using the scanner (V2 wearers' meshes, V1 wearers' orbs)
+- "Sphere View" to show other scanners as a small hips-centered sphere instead of the full mesh - only you see the change
+- Each Universal feature or plugin contact you enabled gets its own toggle in this menu - flip it to turn that contact on or off
 
 HOW DOES IT WORK?
 - When you build your avatar, the script creates a duplicate of all source renderers and heavily decimates them before disabling them
 - Then, it applies the StaffScanner material, which is a Poiyomi material that is visible through walls and fades away when at a certain distance
-- Two contacts are constrained to the world origin; a receiver, and a sender
-- The sender is disabled by default, and is enabled only locally when the "See Others"(ClubMaul/Sender) parameter is enabled
-- When enabled, the local player will detect contact receivers sent out by others with the Staff Scanner on, which from the local player's view enables the newly created mesh
+- A group of contact senders and receivers is pinned to the world origin, so every scanner user's contacts always overlap
+- Visibility is decided per viewer: "See Others" enables local-only senders that exist solely on your own client, and each wearer's always-on receivers turn them into non-synced per-viewer parameters that gate the scanner mesh in that wearer's FX layer. Only scanner wearers carry those senders, so players without the scanner can never see the mesh
+- "Broadcast Self" drives the synced ClubMaulShow parameter, which must also be on for anyone to see you

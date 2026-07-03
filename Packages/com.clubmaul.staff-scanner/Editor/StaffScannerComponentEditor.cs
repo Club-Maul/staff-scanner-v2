@@ -19,9 +19,15 @@ namespace ClubMaul.StaffScanner.Editor
         private string _previewKey;
         private int _previewBefore, _previewAfter;
 
+        // Effective-source lookup (may walk the whole avatar) is shared by several draws;
+        // resolve it at most once per inspector pass.
+        private List<SkinnedMeshRenderer> _effectiveSources;
+        private bool _effectiveAutoDetected;
+
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
+            _effectiveSources = null;
 
             var roleProp = serializedObject.FindProperty("Role");
             bool isBeast = roleProp.enumValueIndex == (int)StaffRole.Beast;
@@ -56,6 +62,18 @@ namespace ClubMaul.StaffScanner.Editor
 
         // The explicit source list, or the auto-detected body mesh (same pick the build uses) if empty.
         private List<SkinnedMeshRenderer> GetEffectiveSources(out bool autoDetected)
+        {
+            if (_effectiveSources != null)
+            {
+                autoDetected = _effectiveAutoDetected;
+                return _effectiveSources;
+            }
+            _effectiveSources = ResolveEffectiveSources(out _effectiveAutoDetected);
+            autoDetected = _effectiveAutoDetected;
+            return _effectiveSources;
+        }
+
+        private List<SkinnedMeshRenderer> ResolveEffectiveSources(out bool autoDetected)
         {
             autoDetected = false;
             var list = new List<SkinnedMeshRenderer>();
@@ -106,7 +124,8 @@ namespace ClubMaul.StaffScanner.Editor
             EditorGUILayout.HelpBox($"After decimation: ~{_previewAfter:N0} tris (from {_previewBefore:N0}).", MessageType.None);
         }
 
-        // Runs the real decimator (exact count), cached so idle repaints don't recompute.
+        // Runs the real clustering (exact count) without building a throwaway Mesh,
+        // cached so idle repaints don't recompute.
         private void UpdatePreview(List<SkinnedMeshRenderer> sources, float amount)
         {
             var key = amount.ToString("F2");
@@ -119,9 +138,7 @@ namespace ClubMaul.StaffScanner.Editor
                 var mesh = smr.sharedMesh;
                 if (mesh == null) continue;
                 for (int s = 0; s < mesh.subMeshCount; s++) before += (int)(mesh.GetIndexCount(s) / 3);
-                var dec = MeshDecimator.Decimate(mesh, amount);
-                after += (int)(dec.GetIndexCount(0) / 3);
-                DestroyImmediate(dec);
+                after += MeshDecimator.CountTriangles(mesh, amount);
             }
             _previewKey = key;
             _previewBefore = before;

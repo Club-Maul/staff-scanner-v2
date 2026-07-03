@@ -1,4 +1,4 @@
-// Staff Scanner V2 — by Loveseal | v1.0.0
+// Staff Scanner V2 — by Loveseal
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -18,7 +18,8 @@ namespace ClubMaul.StaffScanner
     [AddComponentMenu("Club Maul/Staff Scanner V2")]
     public class StaffScannerComponent : MonoBehaviour, IEditorOnly
     {
-        public const string Version = "1.0.0";
+        // Keep in sync with package.json.
+        public const string Version = "1.3.2";
 
         [Header("Mesh")]
         [Tooltip("Meshes to duplicate. If empty, auto-detects the avatar's body mesh.")]
