@@ -4,6 +4,11 @@ All notable changes to this package are documented here. This project adheres to
 
 ## [1.3.2] - 2026-07-03
 
+### Changed
+
+- V1 scanners can now see V2 scanners.
+  - The contact receiver responds to both ClubMaul/Contact and ClubMaulShow
+
 ### Fixed
 
 - V1 scanners were being triggered by the V2 scanner for all users in the instance.
