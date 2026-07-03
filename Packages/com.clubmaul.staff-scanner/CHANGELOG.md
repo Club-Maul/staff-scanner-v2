@@ -4,6 +4,10 @@ All notable changes to this package are documented here. This project adheres to
 
 ## [1.3.2] - 2026-07-02
 
+### Added
+
+- **V1 users can now see V2 wearers — for real this time.** It turns out V1's contact sender is animated on `IsLocal`, so it only ever exists on the V1 wearer's own client (a hand-rolled local-only sender). A new `LegacyShowReceiver` on V2 detects it and shows the wearer's sphere (or the full mesh on avatars without a sphere) via the per-viewer `ClubMaulLegacyShow` param — so it can only ever appear to V1 staff who have their V1 Sender toggle on, never to anyone without a scanner. It's gated by **Broadcast Self**, so opting out hides you from V1 staff too, and V2 viewers are unaffected (the staff gate keeps them on the normal mesh/sphere logic). (Staff must re-upload to apply.)
+
 ### Changed
 
 - The decimator now drops exact duplicate triangles (same corners, same winding) produced by vertex clustering — slightly fewer triangles for identical visuals.

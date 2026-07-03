@@ -25,6 +25,7 @@ namespace ClubMaul.StaffScanner.Editor
         private const string LocalParam = "IsLocal";      // VRChat built-in; true only on the wearer's own client.
         private const string SphereParam = "ClubMaulSphere";    // Non-synced (per-viewer); see BuildSphereReceiver.
         private const string StaffParam  = "ClubMaulStaffView"; // Non-synced (per-viewer) staff-only gate; see BuildStaffReceiver.
+        private const string LegacyShowParam = "ClubMaulLegacyShow"; // Non-synced (per-viewer) V1-staff gate; see BuildLegacyShowReceiver.
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
@@ -128,8 +129,9 @@ namespace ClubMaul.StaffScanner.Editor
             fc.AddParams(expParams);
             // Global so VRCFury doesn't rename it — keeps other Club Maul tools in sync.
             fc.AddGlobalParam(ShowParam);
-            // Receiver-driven, left out of expParams so it stays local (per-viewer); un-prefix the name.
+            // Receiver-driven, left out of expParams so they stay local (per-viewer); un-prefix the names.
             fc.AddGlobalParam(StaffParam);
+            fc.AddGlobalParam(LegacyShowParam);
 
             if (sphere != null) fc.AddGlobalParam(SphereParam);
         }
@@ -180,10 +182,14 @@ namespace ClubMaul.StaffScanner.Editor
         // The group sits at world origin (VRCParentConstraint) so all scanner users' contacts coincide.
         private const float  SenderRadius   = 0.5f;
         private const string ContactTag     = "ClubMaul/Contact";
-        // Old V1 scanner's tag, sent by a LOCAL-ONLY sender so V2 wearers see V1 users' orbs on
-        // their own client only. NEVER put this tag on a networked sender: V1's receiver is
-        // networked, always-on, and its orb is gated on nothing else, so a networked sender
-        // lights every V1 orb up for the whole instance — scanner or not.
+        // Old V1 scanner's tag, used in both directions:
+        //  - Outbound (LegacyViewSender): LOCAL-ONLY, so V2 wearers see V1 users' orbs on their
+        //    own client only. NEVER put this tag on a networked sender: V1's receiver is
+        //    networked, always-on, and its orb is gated on nothing else, so a networked sender
+        //    lights every V1 orb up for the whole instance — scanner or not.
+        //  - Inbound (LegacyShowReceiver): V1's own sender is animated on IsLocal && its Sender
+        //    toggle, so it only ever exists on the V1 wearer's client — detecting this tag
+        //    identifies a V1 staff viewer, per-client.
         private const string LegacyContactTag = "ClubMaulShow";
         private const string SphereTag      = "ClubMaul/SphereView";
         private const string StaffTag       = "ClubMaul/Staff";
@@ -222,9 +228,12 @@ namespace ClubMaul.StaffScanner.Editor
             var menuHost = comp.gameObject;
             var menuPath = comp.GetMenuPath();
 
-            // Core contacts — always built.
+            // Core contacts — always built. Broadcast Self also gates the V1-compat receiver,
+            // so opting out of being seen hides you from V1 staff too.
             var receiver = BuildReceiver(contacts);
-            AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
+            var legacyReceiver = BuildLegacyShowReceiver(contacts);
+            AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true,
+                          extraTarget: legacyReceiver);
 
             // Always-on networked beacon so other wearers' "Broadcast Self" receivers detect this wearer
             // (flips the synced ClubMaulShow). Must NOT be localOnly: a local-only sender exists solely
@@ -411,6 +420,34 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
+        // Drives non-synced ClubMaulLegacyShow when a V1 scanner user is looking. V1's sender is
+        // animated on IsLocal && its Sender toggle, so it only ever exists on the V1 wearer's own
+        // client — detection is inherently per-viewer and can never fire for someone without a
+        // scanner. Default-off; enabled by "Broadcast Self".
+        private static GameObject BuildLegacyShowReceiver(Transform parent)
+        {
+            var existing = FindChildByName(parent, "LegacyShowReceiver");
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+
+            var go = new GameObject("LegacyShowReceiver");
+            go.transform.SetParent(parent, false);
+
+            var receiver = go.AddComponent<VRCContactReceiver>();
+            receiver.shapeType     = ContactBase.ShapeType.Sphere;
+            receiver.radius        = SenderRadius;
+            receiver.position      = Vector3.zero;
+            receiver.rotation      = Quaternion.identity;
+            receiver.localOnly     = false;
+            receiver.collisionTags = new List<string> { LegacyContactTag };
+            receiver.allowSelf     = false;
+            receiver.allowOthers   = true;
+            receiver.receiverType  = ContactReceiver.ReceiverType.Constant;
+            receiver.parameter     = LegacyShowParam;
+
+            go.SetActive(false);
+            return go;
+        }
+
         // Drives non-synced ClubMaulStaffView from the local viewer's "See Others" sender; always active (per-viewer).
         private static GameObject BuildStaffReceiver(Transform parent)
         {
@@ -564,6 +601,7 @@ namespace ClubMaul.StaffScanner.Editor
             controller.AddParameter(ShowParam, AnimatorControllerParameterType.Bool);
             controller.AddParameter(LocalParam, AnimatorControllerParameterType.Bool);
             controller.AddParameter(StaffParam, AnimatorControllerParameterType.Bool);
+            controller.AddParameter(LegacyShowParam, AnimatorControllerParameterType.Bool);
             if (hasSphere) controller.AddParameter(SphereParam, AnimatorControllerParameterType.Bool);
 
             // Full mesh: shown when scanning and not the wearer. Suppressed in sphere mode (if available).
@@ -573,6 +611,11 @@ namespace ClubMaul.StaffScanner.Editor
             // Sphere: same gate, but only in sphere mode.
             if (hasSphere)
                 BuildShowLayer(controller, "StaffScannerSphere", avatarRoot, sphereTargets, sphereMode: true);
+
+            // V1-compat: V1 staff viewers (who can't carry the V2 staff sender) get the sphere,
+            // or the mesh on avatars without one. Must come after the layers above so its On
+            // state can override their Off zeros; its own Off state animates nothing.
+            BuildLegacyShowLayer(controller, avatarRoot, hasSphere ? sphereTargets : meshTargets);
 
             return controller;
         }
@@ -614,6 +657,43 @@ namespace ClubMaul.StaffScanner.Editor
             AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, StaffParam);
             if (sphereMode.HasValue)
                 AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereParam);
+        }
+
+        // Shows 'targets' to V1 staff viewers: On when the per-viewer ClubMaulLegacyShow is set
+        // (only a V1 wearer's client ever sets it), the viewer isn't the wearer, and the viewer
+        // isn't V2 staff (StaffParam keeps V2 viewers on the normal mesh/sphere layers, which
+        // this layer would otherwise override). The Off state has an empty clip so those layers
+        // stay authoritative whenever this one isn't showing.
+        private static void BuildLegacyShowLayer(AnimatorController controller, GameObject avatarRoot, List<GameObject> targets)
+        {
+            const string layerName = "StaffScannerLegacy";
+            controller.AddLayer(layerName);
+            var layers = controller.layers;
+            int idx = layers.Length - 1;
+            layers[idx].defaultWeight = 1f;
+            controller.layers = layers;
+
+            var sm = controller.layers[idx].stateMachine;
+
+            var offState = sm.AddState("Off");
+            offState.motion             = new AnimationClip { name = layerName + "_Off" };
+            offState.writeDefaultValues = false;
+            sm.defaultState             = offState;
+
+            var onState = sm.AddState("On");
+            onState.motion             = BuildToggleClip(layerName + "_On", avatarRoot, targets, true);
+            onState.writeDefaultValues = false;
+
+            var toOn = offState.AddTransition(onState);
+            toOn.hasExitTime = false;
+            toOn.duration    = 0f;
+            toOn.AddCondition(AnimatorConditionMode.If,    0, LegacyShowParam);
+            toOn.AddCondition(AnimatorConditionMode.IfNot, 0, LocalParam);
+            toOn.AddCondition(AnimatorConditionMode.IfNot, 0, StaffParam);
+
+            AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, LegacyShowParam);
+            AddOffTransition(onState, offState, AnimatorConditionMode.If,    LocalParam);
+            AddOffTransition(onState, offState, AnimatorConditionMode.If,    StaffParam);
         }
 
         private static void AddOffTransition(AnimatorState from, AnimatorState to, AnimatorConditionMode mode, string param)
