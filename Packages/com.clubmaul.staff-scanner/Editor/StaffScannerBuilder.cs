@@ -218,6 +218,7 @@ namespace ClubMaul.StaffScanner.Editor
 
             // Core contacts — always built.
             var receiver = BuildReceiver(contacts);
+            receiver.GetComponent<VRCContactReceiver>().collisionTags.Add(LegacyContactTag);
             AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
             var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: true);
