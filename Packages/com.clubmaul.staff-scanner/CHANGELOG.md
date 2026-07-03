@@ -10,6 +10,7 @@ All notable changes to this package are documented here. This project adheres to
 
 ### Changed
 
+- **Broadcast Self now drives the synced `ClubMaulShow` directly** (via the toggle's own parameter) instead of enabling a contact receiver that detected other wearers' presence beacons. The receiver round trip was redundant — any viewer who can pass the staff gate is a wearer themselves, so "another wearer is present" was always true whenever it mattered — and it had a real bug: disabling a contact receiver freezes its parameter at the last driven value, so turning Broadcast Self off after it had triggered didn't actually hide you until your avatar reset. Side benefits: V1 staff can now see a V2 wearer who is the *only* V2 user in the instance, and one networked contact receiver is gone. The presence beacon is kept so pre-1.3.2 wearers still detect current ones (and worlds can detect staff); the `ClubMaulShow` name and syncing are unchanged for external tools, though it now means "Broadcast Self is on" rather than "another wearer is present". (Staff must re-upload to apply.)
 - The decimator now drops exact duplicate triangles (same corners, same winding) produced by vertex clustering — slightly fewer triangles for identical visuals.
 - The inspector's triangle-count preview now runs a count-only pass instead of building and destroying a full mesh, so dragging the Decimation Amount slider is much smoother on heavy meshes. The avatar body-mesh auto-detect is also resolved once per inspector repaint instead of twice.
 

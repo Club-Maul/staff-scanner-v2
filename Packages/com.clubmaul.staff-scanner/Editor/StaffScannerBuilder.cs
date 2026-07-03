@@ -9,7 +9,6 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
-using VRC.SDK3.Avatars.ScriptableObjects;
 using VRC.SDKBase.Editor.BuildPipeline;
 using VRC.Dynamics;
 using VRC.SDK3.Dynamics.Contact.Components;
@@ -111,23 +110,11 @@ namespace ClubMaul.StaffScanner.Editor
 
             var controller = BuildAnimatorController(avatarRoot, generated, sphereTargets);
 
-            var expParams = ScriptableObject.CreateInstance<VRCExpressionParameters>();
-            expParams.parameters = new[]
-            {
-                new VRCExpressionParameters.Parameter
-                {
-                    name          = ShowParam,
-                    valueType     = VRCExpressionParameters.ValueType.Bool,
-                    saved         = false,
-                    defaultValue  = 0f,
-                    networkSynced = true
-                }
-            };
-
             var fc = FuryComponents.CreateFullController(avatarRoot);
             fc.AddController(controller, VRCAvatarDescriptor.AnimLayerType.FX);
-            fc.AddParams(expParams);
-            // Global so VRCFury doesn't rename it — keeps other Club Maul tools in sync.
+            // ClubMaulShow itself is created (synced + saved) by the Broadcast Self toggle via its
+            // global param; declared global here too so this controller's copy isn't renamed —
+            // keeps other Club Maul tools in sync.
             fc.AddGlobalParam(ShowParam);
             // Receiver-driven, left out of expParams so they stay local (per-viewer); un-prefix the names.
             fc.AddGlobalParam(StaffParam);
@@ -228,19 +215,23 @@ namespace ClubMaul.StaffScanner.Editor
             var menuHost = comp.gameObject;
             var menuPath = comp.GetMenuPath();
 
-            // Core contacts — always built. Broadcast Self also gates the V1-compat receiver,
-            // so opting out of being seen hides you from V1 staff too.
-            var receiver = BuildReceiver(contacts);
+            // Broadcast Self drives the synced ClubMaulShow directly via its own toggle param.
+            // (It used to enable a receiver that detected other wearers' beacons — redundant, since
+            // any viewer who can pass the staff gate is a wearer themselves, and disabling the
+            // receiver froze the param at its last value, so you couldn't actually un-broadcast.)
+            // The toggle still gates the V1-compat receiver, so opting out hides you from V1 staff too.
+            RemoveLegacyShowParamReceiver(contacts);
             var legacyReceiver = BuildLegacyShowReceiver(contacts);
-            AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true,
-                          extraTarget: legacyReceiver);
+            AddMenuToggle(menuHost, menuPath, "Broadcast Self", legacyReceiver, saved: true, defaultOn: true,
+                          globalParam: ShowParam);
 
-            // Always-on networked beacon so other wearers' "Broadcast Self" receivers detect this wearer
-            // (flips the synced ClubMaulShow). Must NOT be localOnly: a local-only sender exists solely
-            // on this wearer's own client, and the receivers that need to detect it run on *other*
-            // wearers' clients — localOnly here means nobody's scanner ever shows (the 1.2.1 bug).
-            // Safe to network: it carries no viewer-gating tag, so it can only flip ClubMaulShow, and
-            // the mesh still needs the staff-only ClubMaulStaffView gate before anyone sees anything.
+            // Always-on networked beacon. Current versions no longer listen for it (Broadcast Self
+            // drives ClubMaulShow directly), but keep it for compatibility: pre-1.3.2 wearers'
+            // "Broadcast Self" receivers need another wearer's beacon to flip their synced
+            // ClubMaulShow, and compatible worlds may use it to detect staff presence. Must NOT be
+            // localOnly: a local-only sender exists solely on this wearer's own client, and those
+            // old receivers run on *other* wearers' clients (the 1.2.1 bug). Safe to network: it
+            // carries no viewer-gating tag, so nobody can see anything from it alone.
             var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
             presence.SetActive(true);
 
@@ -266,7 +257,7 @@ namespace ClubMaul.StaffScanner.Editor
             {
                 // Drop any stale leftover so re-builds don't duplicate it.
                 var existing = FindChildByName(contacts, feature.ObjectName);
-                if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+                if (existing != null) UnityEngine.Object.DestroyImmediate(existing.gameObject);
 
                 if (!isBeast || !feature.Enabled) continue;
 
@@ -298,7 +289,7 @@ namespace ClubMaul.StaffScanner.Editor
                     // Namespace the object by plugin so two plugins can't collide.
                     string objName = $"{pluginName}_{contact.Name}";
                     var existing = FindChildByName(contacts, objName);
-                    if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+                    if (existing != null) UnityEngine.Object.DestroyImmediate(existing.gameObject);
 
                     var go = BuildSender(contacts, objName, contact.CollisionTag, localOnly: true);
                     bool isButton = contact.ControlType == PluginControlType.Button;
@@ -354,7 +345,7 @@ namespace ClubMaul.StaffScanner.Editor
         private static GameObject BuildSender(Transform parent, string name, string tag, bool localOnly)
         {
             var existing = FindChildByName(parent, name);
-            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing.gameObject);
 
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -371,36 +362,19 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        // Drives ShowParam when it detects another scanner user's sender. Enabled by "Broadcast Self".
-        private static GameObject BuildReceiver(Transform parent)
+        // Drop any stale "Receiver" from pre-1.3.2 prefabs — ClubMaulShow is now driven directly
+        // by the Broadcast Self toggle, so a leftover receiver would fight it.
+        private static void RemoveLegacyShowParamReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "Receiver");
-            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
-
-            var go = new GameObject("Receiver");
-            go.transform.SetParent(parent, false);
-
-            var receiver = go.AddComponent<VRCContactReceiver>();
-            receiver.shapeType     = ContactBase.ShapeType.Sphere;
-            receiver.radius        = SenderRadius;
-            receiver.position      = Vector3.zero;
-            receiver.rotation      = Quaternion.identity;
-            receiver.localOnly     = false;
-            receiver.collisionTags = new List<string> { ContactTag };
-            receiver.allowSelf     = false;
-            receiver.allowOthers   = true;
-            receiver.receiverType  = ContactReceiver.ReceiverType.Constant;
-            receiver.parameter     = ShowParam;
-
-            go.SetActive(false);
-            return go;
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing.gameObject);
         }
 
         // Drives non-synced ClubMaulSphere from any local "Sphere View" sender; always active (per-viewer).
         private static GameObject BuildSphereReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "SphereViewReceiver");
-            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing.gameObject);
 
             var go = new GameObject("SphereViewReceiver");
             go.transform.SetParent(parent, false);
@@ -427,7 +401,7 @@ namespace ClubMaul.StaffScanner.Editor
         private static GameObject BuildLegacyShowReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "LegacyShowReceiver");
-            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing.gameObject);
 
             var go = new GameObject("LegacyShowReceiver");
             go.transform.SetParent(parent, false);
@@ -452,7 +426,7 @@ namespace ClubMaul.StaffScanner.Editor
         private static GameObject BuildStaffReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "StaffViewReceiver");
-            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
+            if (existing != null) UnityEngine.Object.DestroyImmediate(existing.gameObject);
 
             var go = new GameObject("StaffViewReceiver");
             go.transform.SetParent(parent, false);
@@ -473,18 +447,45 @@ namespace ClubMaul.StaffScanner.Editor
         }
 
         // VRCFury menu Toggle that turns 'target' on while the item is on. holdButton = momentary Button.
+        // globalParam makes the toggle's own state param that exact (unprefixed, synced) name, so
+        // our FX layers can condition on it directly.
         private static void AddMenuToggle(GameObject host, string menuPath, string itemName, GameObject target,
                                           bool saved = false, bool defaultOn = false, bool holdButton = false,
-                                          GameObject extraTarget = null)
+                                          GameObject extraTarget = null, string globalParam = null)
         {
             var toggle = FuryComponents.CreateToggle(host);
             toggle.SetMenuPath($"{menuPath}/{itemName}");
             if (saved)      toggle.SetSaved();
             if (defaultOn)  toggle.SetDefaultOn();
             if (holdButton) SetHoldButton(toggle);
+            if (globalParam != null) SetToggleGlobalParam(toggle, globalParam);
             var actions = toggle.GetActions();
             actions.AddTurnOn(target);
             if (extraTarget != null) actions.AddTurnOn(extraTarget);
+        }
+
+        // "Use a Global Parameter" isn't in VRCFury's public API either; set it on the underlying
+        // Toggle model like SetHoldButton does. Unlike Button mode, failing here breaks the build
+        // (the FX gate param would never be driven), so it errors loudly instead of warning.
+        private static void SetToggleGlobalParam(FuryToggle toggle, string param)
+        {
+            try
+            {
+                var modelField = typeof(FuryToggle).GetField("c", BindingFlags.NonPublic | BindingFlags.Instance);
+                var model = modelField?.GetValue(toggle);
+                var type  = model?.GetType();
+                var useField   = type?.GetField("useGlobalParam");
+                var paramField = type?.GetField("globalParam");
+                if (model == null || useField == null || paramField == null)
+                    throw new MissingFieldException("Toggle.useGlobalParam/globalParam not found");
+                useField.SetValue(model, true);
+                paramField.SetValue(model, param);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[StaffScanner] Couldn't bind toggle to global param '{param}' — the " +
+                               $"scanner will not display. VRCFury version mismatch? {ex.Message}");
+            }
         }
 
         // 'holdButton' (Button mode) isn't in VRCFury's public API, so set it on the underlying
@@ -687,10 +688,12 @@ namespace ClubMaul.StaffScanner.Editor
             var toOn = offState.AddTransition(onState);
             toOn.hasExitTime = false;
             toOn.duration    = 0f;
+            toOn.AddCondition(AnimatorConditionMode.If,    0, ShowParam); // Broadcast Self opt-out
             toOn.AddCondition(AnimatorConditionMode.If,    0, LegacyShowParam);
             toOn.AddCondition(AnimatorConditionMode.IfNot, 0, LocalParam);
             toOn.AddCondition(AnimatorConditionMode.IfNot, 0, StaffParam);
 
+            AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, ShowParam);
             AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, LegacyShowParam);
             AddOffTransition(onState, offState, AnimatorConditionMode.If,    LocalParam);
             AddOffTransition(onState, offState, AnimatorConditionMode.If,    StaffParam);
