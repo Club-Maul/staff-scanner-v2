@@ -8,6 +8,7 @@ All notable changes to this package are documented here. This project adheres to
 
 - V1 scanners were being triggered by the V2 scanner for all users in the instance.
   - The sender is now properly local-only.
+- The ClubMaulShow parameter was network-synced. It is now unsynced.
 
 ## [1.3.1] - 2026-06-26
 
