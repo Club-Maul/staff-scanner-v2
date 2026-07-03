@@ -24,7 +24,6 @@ namespace ClubMaul.StaffScanner.Editor
         private const string ShowParam  = "ClubMaulShow";
         private const string LocalParam = "IsLocal";      // VRChat built-in; true only on the wearer's own client.
         private const string SphereParam = "ClubMaulSphere";    // Non-synced (per-viewer); see BuildSphereReceiver.
-        private const string StaffParam  = "ClubMaulStaffView"; // Non-synced (per-viewer) staff-only gate; see BuildStaffReceiver.
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
@@ -119,7 +118,7 @@ namespace ClubMaul.StaffScanner.Editor
                     valueType     = VRCExpressionParameters.ValueType.Bool,
                     saved         = false,
                     defaultValue  = 0f,
-                    networkSynced = true
+                    networkSynced = false
                 }
             };
 
@@ -128,8 +127,6 @@ namespace ClubMaul.StaffScanner.Editor
             fc.AddParams(expParams);
             // Global so VRCFury doesn't rename it — keeps other Club Maul tools in sync.
             fc.AddGlobalParam(ShowParam);
-            // Receiver-driven, left out of expParams so it stays local (per-viewer); un-prefix the name.
-            fc.AddGlobalParam(StaffParam);
 
             if (sphere != null) fc.AddGlobalParam(SphereParam);
         }
@@ -184,7 +181,6 @@ namespace ClubMaul.StaffScanner.Editor
         // V2 meshes stay staff-only).
         private const string LegacyContactTag = "ClubMaulShow";
         private const string SphereTag      = "ClubMaul/SphereView";
-        private const string StaffTag       = "ClubMaul/Staff";
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 
@@ -224,23 +220,15 @@ namespace ClubMaul.StaffScanner.Editor
             var receiver = BuildReceiver(contacts);
             AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
 
-            // Always-on networked beacon so other wearers' "Broadcast Self" receivers detect this wearer
-            // (flips the synced ClubMaulShow). Also answers the old V1 tag for cross-version visibility.
-            var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: false);
+            var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: true);
             presence.GetComponent<VRCContactSender>().collisionTags.Add(LegacyContactTag);
-            presence.SetActive(true);
+            AddMenuToggle(menuHost, menuPath, "See Others", presence, saved: true, defaultOn: true);
 
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
             // enabling it shows other scanners as spheres to you only.
             var sphereSender = BuildSender(contacts, "SphereViewSender", SphereTag, localOnly: true);
             AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
             BuildSphereReceiver(contacts);
-
-            // "See Others" — per-viewer gate: a local-only staff sender that each wearer's receiver turns into
-            // the non-synced ClubMaulStaffView. Off → you see nothing; only wearers carry it, so it's staff-only.
-            var seeOthersSender = BuildSender(contacts, "StaffSelfSender", StaffTag, localOnly: true);
-            AddMenuToggle(menuHost, menuPath, "See Others", seeOthersSender, saved: true, defaultOn: true);
-            BuildStaffReceiver(contacts);
 
             // Optional world features — Beast role only.
             bool isBeast = comp.Role == StaffRole.Beast;
@@ -402,30 +390,6 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        // Drives non-synced ClubMaulStaffView from the local viewer's "See Others" sender; always active (per-viewer).
-        private static GameObject BuildStaffReceiver(Transform parent)
-        {
-            var existing = FindChildByName(parent, "StaffViewReceiver");
-            if (existing != null) UnityEngine.Object.DestroyImmediate(existing);
-
-            var go = new GameObject("StaffViewReceiver");
-            go.transform.SetParent(parent, false);
-
-            var receiver = go.AddComponent<VRCContactReceiver>();
-            receiver.shapeType     = ContactBase.ShapeType.Sphere;
-            receiver.radius        = SenderRadius;
-            receiver.position      = Vector3.zero;
-            receiver.rotation      = Quaternion.identity;
-            receiver.localOnly     = false;
-            receiver.collisionTags = new List<string> { StaffTag };
-            receiver.allowSelf     = false;
-            receiver.allowOthers   = true;
-            receiver.receiverType  = ContactReceiver.ReceiverType.Constant;
-            receiver.parameter     = StaffParam;
-
-            return go;
-        }
-
         // VRCFury menu Toggle that turns 'target' on while the item is on. holdButton = momentary Button.
         private static void AddMenuToggle(GameObject host, string menuPath, string itemName, GameObject target,
                                           bool saved = false, bool defaultOn = false, bool holdButton = false)
@@ -551,7 +515,6 @@ namespace ClubMaul.StaffScanner.Editor
             var controller = new AnimatorController { name = "StaffScanner_FX" };
             controller.AddParameter(ShowParam, AnimatorControllerParameterType.Bool);
             controller.AddParameter(LocalParam, AnimatorControllerParameterType.Bool);
-            controller.AddParameter(StaffParam, AnimatorControllerParameterType.Bool);
             if (hasSphere) controller.AddParameter(SphereParam, AnimatorControllerParameterType.Bool);
 
             // Full mesh: shown when scanning and not the wearer. Suppressed in sphere mode (if available).
@@ -592,14 +555,12 @@ namespace ClubMaul.StaffScanner.Editor
             toOn.duration    = 0f;
             toOn.AddCondition(AnimatorConditionMode.If,    0, ShowParam);
             toOn.AddCondition(AnimatorConditionMode.IfNot, 0, LocalParam);
-            toOn.AddCondition(AnimatorConditionMode.If,    0, StaffParam);
             if (sphereMode.HasValue)
                 toOn.AddCondition(sphereMode.Value ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0, SphereParam);
 
             // Leave "On" if any single gate fails (separate transitions == OR).
             AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, ShowParam);
             AddOffTransition(onState, offState, AnimatorConditionMode.If,    LocalParam);
-            AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, StaffParam);
             if (sphereMode.HasValue)
                 AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereParam);
         }

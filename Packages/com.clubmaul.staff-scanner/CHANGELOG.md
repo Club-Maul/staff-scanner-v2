@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- V1 scanners were being triggered by the V2 scanner for all users in the instance.
+  - The sender is now properly local-only.
+
 ## [1.3.1] - 2026-06-26
 
 ### Added
