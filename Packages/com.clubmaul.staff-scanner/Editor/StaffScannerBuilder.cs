@@ -394,10 +394,21 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
+        // The legacy receiver sits this far from the world origin. V1's sender is a ~3.74 m sphere
+        // (0.5 radius x its baked 7.4744 scale) so it still reaches us here, but 1.3.1's 0.5 m
+        // beacon — which carries the same tag, networked and always-on — cannot. Without this
+        // offset, one 1.3.1 upload in the instance would show every broadcasting 1.3.2 wearer to
+        // the whole instance. Our contacts group is scale-constrained to the world anchor, so our
+        // side is a fixed world size; the discrimination only bends with the OTHER party's avatar
+        // scale (their contacts aren't pinned): a 1.3.1 wearer scaled above ~3x re-opens the
+        // exposure while present, and a V1 wearer shrunk below ~0.4x can't see V2 wearers.
+        private const float LegacyReceiverOffset = 2f;
+
         // Drives non-synced ClubMaulLegacyShow when a V1 scanner user is looking. V1's sender is
         // animated on IsLocal && its Sender toggle, so it only ever exists on the V1 wearer's own
         // client — detection is inherently per-viewer and can never fire for someone without a
-        // scanner. Default-off; enabled by "Broadcast Self".
+        // scanner. Offset from origin to stay clear of 1.3.1 beacons (see LegacyReceiverOffset).
+        // Default-off; enabled by "Broadcast Self".
         private static GameObject BuildLegacyShowReceiver(Transform parent)
         {
             var existing = FindChildByName(parent, "LegacyShowReceiver");
@@ -409,7 +420,7 @@ namespace ClubMaul.StaffScanner.Editor
             var receiver = go.AddComponent<VRCContactReceiver>();
             receiver.shapeType     = ContactBase.ShapeType.Sphere;
             receiver.radius        = SenderRadius;
-            receiver.position      = Vector3.zero;
+            receiver.position      = new Vector3(0f, LegacyReceiverOffset, 0f);
             receiver.rotation      = Quaternion.identity;
             receiver.localOnly     = false;
             receiver.collisionTags = new List<string> { LegacyContactTag };
@@ -529,6 +540,14 @@ namespace ClubMaul.StaffScanner.Editor
                 constraint.IsActive = true;
                 constraint.Locked   = true;
                 constraint.Sources.Add(new VRCConstraintSource(anchorPrefab.transform, 1f, Vector3.zero, Vector3.zero));
+
+                // Pin scale to the anchor (1,1,1) as well, so every contact's radius/offset is a
+                // fixed world size — avatar scale (including in-game scaling) can't shift the
+                // legacy receiver's geometric discrimination or any contact's reach.
+                var scale = go.AddComponent<VRCScaleConstraint>();
+                scale.IsActive = true;
+                scale.Locked   = true;
+                scale.Sources.Add(new VRCConstraintSource(anchorPrefab.transform, 1f, Vector3.zero, Vector3.zero));
             }
 
             return go.transform;
