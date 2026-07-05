@@ -8,12 +8,13 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: StaffScannerPhotography
-  m_Shader: {fileID: 4800000, guid: 628aab7eb66ca5c44be7a33353d6e218, type: 3}
+  m_Shader: {fileID: 4800000, guid: d5e8d7693fde946cbb6cb8d0a42624c2, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords:
   - BSSBLOOMFOGTYPE_HEIGHT
+  - GRAIN
   - POI_MIRROR
   - _EMISSION
   - _LIGHTINGMODE_FLAT
@@ -27,7 +28,7 @@ Material:
   m_CustomRenderQueue: 3000
   stringTagMap:
     AllLockedGUIDS: e9bc67de4154dfb4894c085f19573cb4
-    OriginalKeywords: BSSBLOOMFOGTYPE_HEIGHT POI_MIRROR _EMISSION _LIGHTINGMODE_FLAT
+    OriginalKeywords: BSSBLOOMFOGTYPE_HEIGHT GRAIN POI_MIRROR _EMISSION _LIGHTINGMODE_FLAT
       _RIM2STYLE_POIYOMI _RIMSTYLE_POIYOMI _STOCHASTICMODE_DELIOT_HEITZ _STYLIZEDREFLECTIONMODE_UNITYCHAN
     OriginalShader: .poiyomi/Poiyomi Toon
     OriginalShaderGUID: 9444ce77bf4418748b1e8591b9d97f85
@@ -47,6 +48,14 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DepthMask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DepthTexture:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -181,7 +190,7 @@ Material:
     - _AlphaMaskUV: 0
     - _AlphaMaskValue: 0
     - _AlphaMipScale: 0.25
-    - _AlphaMod: 0
+    - _AlphaMod: -0.8
     - _AlphaPremultiply: 0
     - _AlphaSharpenedA2C: 0
     - _AlphaTextureStochastic: 0
@@ -633,10 +642,10 @@ Material:
     - _DecalTiled2: 0
     - _DecalTiled3: 0
     - _DepthAlphaMaxDepth: 1
-    - _DepthAlphaMaxValue: 0
+    - _DepthAlphaMaxValue: 0.2
     - _DepthAlphaMinDepth: 0
     - _DepthAlphaMinValue: 1
-    - _DepthAlphaToggle: 0
+    - _DepthAlphaToggle: 1
     - _DepthBulgeFadeLength: 0.02
     - _DepthBulgeHeight: 0.02
     - _DepthBulgeMaskChannel: 0
@@ -901,7 +910,7 @@ Material:
     - _EnablePathing: 0
     - _EnableRim2Lighting: 0
     - _EnableRimLighting: 0
-    - _EnableTouchGlow: 0
+    - _EnableTouchGlow: 1
     - _EnableTruchet: 0
     - _EnableUDIMDiscardOptions: 0
     - _EnableUDIMFaceDiscardOptions: 0
@@ -2433,7 +2442,7 @@ Material:
     - _VoronoiSpace: 0
     - _VoronoiType: 1
     - _ZClip: 1
-    - _ZTest: 4
+    - _ZTest: 8
     - _ZWrite: 0
     - _ppHueSelectOrShift: 1
     - footer_bluesky: 0
@@ -2585,14 +2594,14 @@ Material:
     - m_end_videoEffects: 0
     - m_end_voronoi: 0
     - m_end_voronoiRandom: 0
-    - m_lightingCategory: 0
+    - m_lightingCategory: 1
     - m_mainCategory: 1
     - m_modifierCategory: 0
-    - m_renderingCategory: 0
+    - m_renderingCategory: 1
     - m_specialFXCategory: 1
     - m_start_ALDecalSpectrum: 0
     - m_start_ALVolumeColor: 0
-    - m_start_Alpha: 0
+    - m_start_Alpha: 1
     - m_start_Aniso: 0
     - m_start_BeatsaberBloomFog: 0
     - m_start_BeatsaberOptions: 0
@@ -2659,9 +2668,9 @@ Material:
     - m_start_PPAnimations: 0
     - m_start_PathAudioLink: 0
     - m_start_PoiGlobalCategory: 0
-    - m_start_PoiLightData: 0
+    - m_start_PoiLightData: 1
     - m_start_PoiPostProcessingCategory: 0
-    - m_start_PoiShading: 0
+    - m_start_PoiShading: 1
     - m_start_PoiUVCategory: 0
     - m_start_RGBMask: 0
     - m_start_Rim2AudioLink: 0
@@ -2692,7 +2701,7 @@ Material:
     - m_start_clearCoat: 0
     - m_start_clearcoatadvanced: 0
     - m_start_clearcoatglobalmask: 0
-    - m_start_depthFX: 0
+    - m_start_depthFX: 1
     - m_start_depthRimLightOptions: 0
     - m_start_dissolve: 0
     - m_start_dissolveHueShift: 0
@@ -3008,7 +3017,7 @@ Material:
     - s_start_Decal3HueShift: 0
     - s_start_Decal3Video: 0
     - s_start_DecalTPSMaskGroup: 0
-    - s_start_DepthAlpha: 0
+    - s_start_DepthAlpha: 1
     - s_start_DepthFXColorEmission: 0
     - s_start_DetailNormal: 0
     - s_start_DetailTexture: 0
@@ -3303,7 +3312,7 @@ Material:
     - _ClearCoatReflectionTint: {r: 1, g: 1, b: 1, a: 1}
     - _ClearCoatSpecularTint: {r: 1, g: 1, b: 1, a: 1}
     - _ClothMetallicSmoothnessMapPan: {r: 0, g: 0, b: 0, a: 0}
-    - _Color: {r: 1, g: 1, b: 0, a: 0.46666667}
+    - _Color: {r: 1, g: 1, b: 0, a: 1}
     - _CubeMapColor: {r: 1, g: 1, b: 1, a: 1}
     - _CubeMapMaskPan: {r: 0, g: 0, b: 0, a: 0}
     - _CubeMapRotation: {r: 0, g: 0, b: 0, a: 0}

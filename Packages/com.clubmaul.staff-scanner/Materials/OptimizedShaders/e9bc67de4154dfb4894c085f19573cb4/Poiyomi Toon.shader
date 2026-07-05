@@ -257,6 +257,37 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 		[ThryToggleUI(True)]_MirrorTextureForceEnabled ("Test", Float) = 0
 		[HideInInspector] s_end_MirrorTexture ("", Float) = 0
 		[HideInInspector] m_end_mirrorOptions ("Mirror", Float) = 0
+		[HideInInspector] m_start_depthFX (" Depth FX--{reference_property:_EnableTouchGlow, button_help:{text:Tutorial,action:{type:URL,data:https://www.poiyomi.com/special-fx/depth-fx},hover:Documentation}}", Float) = 0
+		[HideInInspector][ThryToggle(GRAIN)]_EnableTouchGlow ("Enable Depth FX", Float) = 0
+		[Helpbox(1)]_DepthFXWarning ("Depth FX doesn't write to depth, which can break certain transparent effects like custom fog and raymarching", Int) = 0
+		[sRGBWarning]_DepthMask ("Mask--{reference_properties:[_DepthMaskPan, _DepthMaskUV, _DepthMaskChannel, _DepthMaskGlobalMask]}", 2D) = "white" { }
+		[HideInInspector][Vector2]_DepthMaskPan ("Panning", Vector) = (0, 0, 0, 0)
+		[HideInInspector][ThryWideEnum(UV0, 0, UV1, 1, UV2, 2, UV3, 3, Panosphere, 4, World Pos, 5, Local Pos, 8, Polar UV, 6, Distorted UV, 7, Matcap, 9)] _DepthMaskUV ("UV", Int) = 0
+		[HideInInspector][Enum(R, 0, G, 1, B, 2, A, 3)]_DepthMaskChannel ("Channel", Float) = 0
+		[HideInInspector][ThryWideEnum(Off, 0, 1R, 1, 1G, 2, 1B, 3, 1A, 4, 2R, 5, 2G, 6, 2B, 7, 2A, 8, 3R, 9, 3G, 10, 3B, 11, 3A, 12, 4R, 13, 4G, 14, 4B, 15, 4A, 16)] _DepthMaskGlobalMask ("Global Mask--{reference_property:_DepthMaskGlobalMaskBlendType}", Int) = 0
+		[HideInInspector][ThryWideEnum(Add, 7, Subtract, 1, Multiply, 2, Divide, 3, Min, 4, Max, 5, Average, 6, Replace, 0)]_DepthMaskGlobalMaskBlendType ("Blending", Range(0, 1)) = 2
+		[HideInInspector] s_start_DepthFXColorEmission ("Color & Emission--{reference_property:_DepthColorToggle,persistent_expand:true,default_expand:false}", Float) = 0
+		[HideInInspector][ToggleUI]_DepthColorToggle ("Color & Emission", Float) = 0
+		[ThryWideEnum(Replace, 0, Multiply, 1, Add, 2)] _DepthColorBlendMode ("Blend Type", Int) = 0
+		[sRGBWarning(true)]_DepthTexture ("Depth Texture--{reference_properties:[_DepthTexturePan, _DepthTextureUV], condition_showS:(_DepthColorToggle==1)}", 2D) = "white" { }
+		[HideInInspector][Vector2]_DepthTexturePan ("Panning", Vector) = (0, 0, 0, 0)
+		[HideInInspector][ThryWideEnum(UV0, 0, UV1, 1, UV2, 2, UV3, 3, Panosphere, 4, World Pos XZ, 5, Polar UV, 6, Distorted UV, 7, Depth Gradient, 8)] _DepthTextureUV ("UV", Int) = 0
+		_DepthColor ("Color--{condition_showS:(_DepthColorToggle==1), reference_property:_DepthColorThemeIndex}", Color) = (1, 1, 1)
+		[HideInInspector][ThryWideEnum(Off, 0, Theme Color 0, 1, Theme Color 1, 2, Theme Color 2, 3, Theme Color 3, 4, ColorChord 0, 5, ColorChord 1, 6, ColorChord 2, 7, ColorChord 3, 8, AL Theme 0, 9, AL Theme 1, 10, AL Theme 2, 11, AL Theme 3, 12)] _DepthColorThemeIndex ("", Int) = 0
+		_DepthEmissionStrength ("Emission Strength", Range(0, 20)) = 0
+		_DepthColorMinDepth ("Min Depth", Float) = 0
+		_DepthColorMaxDepth ("Max Depth", Float) = 1
+		_DepthColorMinValue ("Min Color Blend", Range(0, 1)) = 1
+		_DepthColorMaxValue ("Max Color Blend", Range(0, 1)) = 0
+		[HideInInspector] s_end_DepthFXColorEmission ("", Float) = 0
+		[HideInInspector] s_start_DepthAlpha ("Alpha--{reference_property:_DepthAlphaToggle,persistent_expand:true,default_expand:false}", Float) = 0
+		[HideInInspector][ToggleUI]_DepthAlphaToggle ("Alpha", Float) = 0
+		_DepthAlphaMinDepth ("Min Depth", Float) = 0
+		_DepthAlphaMaxDepth ("Max Depth", Float) = 1
+		_DepthAlphaMinValue ("Min Alpha", Range(0, 1)) = 1
+		_DepthAlphaMaxValue ("Max Alpha", Range(0, 1)) = 0
+		[HideInInspector] s_end_DepthAlpha ("", Float) = 0
+		[HideInInspector] m_end_depthFX ("Depth FX", Float) = 0
 		[HideInInspector] m_vertexCategory ("Vertex Options", Float) = 0
 		[HideInInspector] m_start_Uzumore (" View Clip Prevention (Uzumore)--{reference_property:_UzumoreCategoryToggle,button_author:{text:sigmal00,action:{type:URL,data:https://github.com/sigmal00},hover:GitHub}}, button_help:{text:Tutorial,action:{type:URL,data:https://www.poiyomi.com/vertex-options/view-clip-prevention},hover:Documentation}}", Float) = 0
 		[HideInInspector][ThryToggle(POI_UZUMORE)] _UzumoreCategoryToggle (" View Clip Prevention (Uzumore)", Float) = 0
@@ -420,6 +451,7 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			BlendOp [_BlendOp], [_BlendOpAlpha]
 			Blend [_SrcBlend] [_DstBlend], [_SrcBlendAlpha] [_DstBlendAlpha]
 			CGPROGRAM
+ #define GRAIN 
  #define POI_MIRROR 
  #define _EMISSION 
  #define _STOCHASTICMODE_DELIOT_HEITZ 
@@ -1388,6 +1420,37 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			float _VisibilityVRCCameraVR;
 			float _VisibilityVRCCameraDesktop;
 			float _VisibilityVRCCameraScreenshot;
+			#endif
+			#ifdef GRAIN
+			#if defined(PROP_DEPTHMASK) || !defined(OPTIMIZER_ENABLED)
+			Texture2D _DepthMask;
+			#endif
+			float4 _DepthMask_ST;
+			float2 _DepthMaskPan;
+			float _DepthMaskUV;
+			float _DepthMaskChannel;
+			float _DepthMaskGlobalMask;
+			float _DepthMaskGlobalMaskBlendType;
+			float _DepthColorToggle;
+			float _DepthColorBlendMode;
+			#if defined(PROP_DEPTHTEXTURE) || !defined(OPTIMIZER_ENABLED)
+			Texture2D _DepthTexture;
+			#endif
+			float4 _DepthTexture_ST;
+			float2 _DepthTexturePan;
+			float _DepthTextureUV;
+			float3 _DepthColor;
+			float _DepthColorThemeIndex;
+			float _DepthColorMinDepth;
+			float _DepthColorMaxDepth;
+			float _DepthColorMinValue;
+			float _DepthColorMaxValue;
+			float _DepthEmissionStrength;
+			float _DepthAlphaToggle;
+			float _DepthAlphaMinValue;
+			float _DepthAlphaMaxValue;
+			float _DepthAlphaMinDepth;
+			float _DepthAlphaMaxDepth;
 			#endif
 			float _PPLightingMultiplier;
 			float _PPLightingAddition;
@@ -3216,7 +3279,7 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			#endif // defined(_STOCHASTICMODE_DELIOT_HEITZ)
 			void applyAlphaOptions(inout PoiFragData poiFragData, in PoiMesh poiMesh, in PoiCam poiCam, in PoiMods poiMods)
 			{
-				poiFragData.alpha = saturate(poiFragData.alpha + 0.0);
+				poiFragData.alpha = saturate(poiFragData.alpha + -0.8);
 				if (0.0 > 0)
 				{
 					poiFragData.alpha = maskBlend(poiFragData.alpha, poiMods.globalMask[0.0 - 1], 2.0);
@@ -3463,6 +3526,76 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				}
 				#if (defined(POI_PASS_BASE) || defined(POI_PASS_ADD))
 				#endif
+			}
+			#endif
+			#ifdef GRAIN
+			void applyDepthFX(inout PoiFragData poiFragData, in PoiCam poiCam, in PoiMesh poiMesh, in PoiMods poiMods)
+			{
+				float3 touchEmission = 0;
+				float perspectiveDivide = 1.0f / poiCam.clipPos.w;
+				float4 direction = poiCam.worldDirection * perspectiveDivide;
+				float2 screenPos = poiCam.posScreenSpace * perspectiveDivide;
+				if(!DepthTextureExists()) return;
+				float z = SampleScreenDepth(screenPos);
+				#if UNITY_REVERSED_Z
+				if (z == 0)
+				#else
+				if (z == 1)
+				#endif
+				return;
+				float depth = CorrectedLinearEyeDepth(z, direction.w);
+				float3 worldpos = direction * depth + _WorldSpaceCameraPos.xyz;
+				float diff = distance(worldpos, poiMesh.worldPos);
+				#if defined(PROP_DEPTHMASK) || !defined(OPTIMIZER_ENABLED)
+				float depthMask = POI2D_SAMPLER_PAN(_DepthMask, _MainTex, poiUV(poiMesh.uv[0.0], float4(1,1,0,0)), float4(0,0,0,0))[0.0];
+				#else
+				float depthMask = 1;
+				#endif
+				if (0.0 > 0)
+				{
+					depthMask = maskBlend(depthMask, poiMods.globalMask[0.0 - 1], 2.0);
+				}
+				if (0.0)
+				{
+					float colorBlendAlpha = lerp(1.0, 0.0, remapClamped(0.0, 1.0, diff));
+					#if defined(PROP_DEPTHTEXTURE) || !defined(OPTIMIZER_ENABLED)
+					float2 depthTextureUV = float2(0, 0);
+					if (0.0 == 8)
+					{
+						depthTextureUV = lerp(0, 1, remapClamped(0.0, 1.0, diff));
+					}
+					else
+					{
+						depthTextureUV = poiMesh.uv[0.0];
+					}
+					float3 depthColor = POI2D_SAMPLER_PAN(_DepthTexture, _MainTex, poiUV(depthTextureUV, float4(1,1,0,0)), float4(0,0,0,0)).rgb * poiThemeColor(poiMods, float4(1,1,1,1), 0.0);
+					#else
+					float3 depthColor = poiThemeColor(poiMods, float4(1,1,1,1), 0.0);
+					#endif
+					switch(0.0)
+					{
+						case 0:
+						{
+							poiFragData.baseColor = lerp(poiFragData.baseColor, depthColor, colorBlendAlpha * depthMask);
+							break;
+						}
+						case 1:
+						{
+							poiFragData.baseColor *= lerp(1, depthColor, colorBlendAlpha * depthMask);
+							break;
+						}
+						case 2:
+						{
+							poiFragData.baseColor = saturate(poiFragData.baseColor + lerp(0, depthColor, colorBlendAlpha * depthMask));
+							break;
+						}
+					}
+					poiFragData.emission += depthColor * colorBlendAlpha * 0.0 * depthMask;
+				}
+				if (1.0)
+				{
+					poiFragData.alpha *= lerp(poiFragData.alpha, saturate(lerp(1.0, 0.2, remapClamped(0.0, 1.0, diff))), depthMask);
+				}
 			}
 			#endif
 			float4 frag(VertexOut i, uint facing : SV_IsFrontFace) : SV_Target
@@ -4001,8 +4134,8 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				#endif
 				poiFragData.baseColor = mainTexture.rgb;
 				#if !defined(POI_PASS_BASETWO) && !defined(POI_PASS_ADDTWO)
-				poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,0.4666667).rgb, 0.0);
-				poiFragData.alpha = mainTexture.a * float4(1,1,0,0.4666667).a;
+				poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,1).rgb, 0.0);
+				poiFragData.alpha = mainTexture.a * float4(1,1,0,1).a;
 				#else
 				if(_TwoPassOverrideFirstPassColor)
 				{
@@ -4011,8 +4144,8 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				}
 				else
 				{
-					poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,0.4666667).rgb, 0.0);
-					poiFragData.alpha = mainTexture.a * float4(1,1,0,0.4666667).a;
+					poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,1).rgb, 0.0);
+					poiFragData.alpha = mainTexture.a * float4(1,1,0,1).a;
 				}
 				#endif
 				if (2.0)
@@ -4030,6 +4163,9 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 					if (2.0 == 4) poiFragData.alpha = saturate(poiFragData.alpha - alphaMask);
 				}
 				applyAlphaOptions(poiFragData, poiMesh, poiCam, poiMods);
+				#ifdef GRAIN
+				applyDepthFX(poiFragData, poiCam, poiMesh, poiMods);
+				#endif
 				poiLight.finalLighting = 1;
 				poiLight.rampedLightMap = poiEdgeNonLinear(poiLight.nDotL, 0.1, .1);
 				#ifdef POI_MIRROR
@@ -4099,6 +4235,7 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			BlendOp [_AddBlendOp], [_AddBlendOpAlpha]
 			Blend [_AddSrcBlend] [_AddDstBlend], [_AddSrcBlendAlpha] [_AddDstBlendAlpha]
 			CGPROGRAM
+ #define GRAIN 
  #define POI_MIRROR 
  #define _EMISSION 
  #define _STOCHASTICMODE_DELIOT_HEITZ 
@@ -4425,6 +4562,37 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			float _VisibilityVRCCameraDesktop;
 			float _VisibilityVRCCameraScreenshot;
 			#endif
+			#ifdef GRAIN
+			#if defined(PROP_DEPTHMASK) || !defined(OPTIMIZER_ENABLED)
+			Texture2D _DepthMask;
+			#endif
+			float4 _DepthMask_ST;
+			float2 _DepthMaskPan;
+			float _DepthMaskUV;
+			float _DepthMaskChannel;
+			float _DepthMaskGlobalMask;
+			float _DepthMaskGlobalMaskBlendType;
+			float _DepthColorToggle;
+			float _DepthColorBlendMode;
+			#if defined(PROP_DEPTHTEXTURE) || !defined(OPTIMIZER_ENABLED)
+			Texture2D _DepthTexture;
+			#endif
+			float4 _DepthTexture_ST;
+			float2 _DepthTexturePan;
+			float _DepthTextureUV;
+			float3 _DepthColor;
+			float _DepthColorThemeIndex;
+			float _DepthColorMinDepth;
+			float _DepthColorMaxDepth;
+			float _DepthColorMinValue;
+			float _DepthColorMaxValue;
+			float _DepthEmissionStrength;
+			float _DepthAlphaToggle;
+			float _DepthAlphaMinValue;
+			float _DepthAlphaMaxValue;
+			float _DepthAlphaMinDepth;
+			float _DepthAlphaMaxDepth;
+			#endif
 			struct appdata
 			{
 				float4 vertex : POSITION;
@@ -6248,7 +6416,7 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			#endif // defined(_STOCHASTICMODE_DELIOT_HEITZ)
 			void applyAlphaOptions(inout PoiFragData poiFragData, in PoiMesh poiMesh, in PoiCam poiCam, in PoiMods poiMods)
 			{
-				poiFragData.alpha = saturate(poiFragData.alpha + 0.0);
+				poiFragData.alpha = saturate(poiFragData.alpha + -0.8);
 				if (0.0 > 0)
 				{
 					poiFragData.alpha = maskBlend(poiFragData.alpha, poiMods.globalMask[0.0 - 1], 2.0);
@@ -6352,6 +6520,76 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				}
 				#if (defined(POI_PASS_BASE) || defined(POI_PASS_ADD))
 				#endif
+			}
+			#endif
+			#ifdef GRAIN
+			void applyDepthFX(inout PoiFragData poiFragData, in PoiCam poiCam, in PoiMesh poiMesh, in PoiMods poiMods)
+			{
+				float3 touchEmission = 0;
+				float perspectiveDivide = 1.0f / poiCam.clipPos.w;
+				float4 direction = poiCam.worldDirection * perspectiveDivide;
+				float2 screenPos = poiCam.posScreenSpace * perspectiveDivide;
+				if(!DepthTextureExists()) return;
+				float z = SampleScreenDepth(screenPos);
+				#if UNITY_REVERSED_Z
+				if (z == 0)
+				#else
+				if (z == 1)
+				#endif
+				return;
+				float depth = CorrectedLinearEyeDepth(z, direction.w);
+				float3 worldpos = direction * depth + _WorldSpaceCameraPos.xyz;
+				float diff = distance(worldpos, poiMesh.worldPos);
+				#if defined(PROP_DEPTHMASK) || !defined(OPTIMIZER_ENABLED)
+				float depthMask = POI2D_SAMPLER_PAN(_DepthMask, _MainTex, poiUV(poiMesh.uv[0.0], float4(1,1,0,0)), float4(0,0,0,0))[0.0];
+				#else
+				float depthMask = 1;
+				#endif
+				if (0.0 > 0)
+				{
+					depthMask = maskBlend(depthMask, poiMods.globalMask[0.0 - 1], 2.0);
+				}
+				if (0.0)
+				{
+					float colorBlendAlpha = lerp(1.0, 0.0, remapClamped(0.0, 1.0, diff));
+					#if defined(PROP_DEPTHTEXTURE) || !defined(OPTIMIZER_ENABLED)
+					float2 depthTextureUV = float2(0, 0);
+					if (0.0 == 8)
+					{
+						depthTextureUV = lerp(0, 1, remapClamped(0.0, 1.0, diff));
+					}
+					else
+					{
+						depthTextureUV = poiMesh.uv[0.0];
+					}
+					float3 depthColor = POI2D_SAMPLER_PAN(_DepthTexture, _MainTex, poiUV(depthTextureUV, float4(1,1,0,0)), float4(0,0,0,0)).rgb * poiThemeColor(poiMods, float4(1,1,1,1), 0.0);
+					#else
+					float3 depthColor = poiThemeColor(poiMods, float4(1,1,1,1), 0.0);
+					#endif
+					switch(0.0)
+					{
+						case 0:
+						{
+							poiFragData.baseColor = lerp(poiFragData.baseColor, depthColor, colorBlendAlpha * depthMask);
+							break;
+						}
+						case 1:
+						{
+							poiFragData.baseColor *= lerp(1, depthColor, colorBlendAlpha * depthMask);
+							break;
+						}
+						case 2:
+						{
+							poiFragData.baseColor = saturate(poiFragData.baseColor + lerp(0, depthColor, colorBlendAlpha * depthMask));
+							break;
+						}
+					}
+					poiFragData.emission += depthColor * colorBlendAlpha * 0.0 * depthMask;
+				}
+				if (1.0)
+				{
+					poiFragData.alpha *= lerp(poiFragData.alpha, saturate(lerp(1.0, 0.2, remapClamped(0.0, 1.0, diff))), depthMask);
+				}
 			}
 			#endif
 			float4 frag(VertexOut i, uint facing : SV_IsFrontFace) : SV_Target
@@ -6890,8 +7128,8 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				#endif
 				poiFragData.baseColor = mainTexture.rgb;
 				#if !defined(POI_PASS_BASETWO) && !defined(POI_PASS_ADDTWO)
-				poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,0.4666667).rgb, 0.0);
-				poiFragData.alpha = mainTexture.a * float4(1,1,0,0.4666667).a;
+				poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,1).rgb, 0.0);
+				poiFragData.alpha = mainTexture.a * float4(1,1,0,1).a;
 				#else
 				if(_TwoPassOverrideFirstPassColor)
 				{
@@ -6900,8 +7138,8 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				}
 				else
 				{
-					poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,0.4666667).rgb, 0.0);
-					poiFragData.alpha = mainTexture.a * float4(1,1,0,0.4666667).a;
+					poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,1).rgb, 0.0);
+					poiFragData.alpha = mainTexture.a * float4(1,1,0,1).a;
 				}
 				#endif
 				if (2.0)
@@ -6919,6 +7157,9 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 					if (2.0 == 4) poiFragData.alpha = saturate(poiFragData.alpha - alphaMask);
 				}
 				applyAlphaOptions(poiFragData, poiMesh, poiCam, poiMods);
+				#ifdef GRAIN
+				applyDepthFX(poiFragData, poiCam, poiMesh, poiMods);
+				#endif
 				poiLight.finalLighting = 1;
 				poiLight.rampedLightMap = poiEdgeNonLinear(poiLight.nDotL, 0.1, .1);
 				#ifdef POI_MIRROR
@@ -6983,6 +7224,7 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			BlendOp [_BlendOp], [_BlendOpAlpha]
 			Blend [_SrcBlend] [_DstBlend], [_SrcBlendAlpha] [_DstBlendAlpha]
 			CGPROGRAM
+ #define GRAIN 
  #define POI_MIRROR 
  #define _EMISSION 
  #define _STOCHASTICMODE_DELIOT_HEITZ 
@@ -7198,6 +7440,37 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			float _VisibilityVRCCameraVR;
 			float _VisibilityVRCCameraDesktop;
 			float _VisibilityVRCCameraScreenshot;
+			#endif
+			#ifdef GRAIN
+			#if defined(PROP_DEPTHMASK) || !defined(OPTIMIZER_ENABLED)
+			Texture2D _DepthMask;
+			#endif
+			float4 _DepthMask_ST;
+			float2 _DepthMaskPan;
+			float _DepthMaskUV;
+			float _DepthMaskChannel;
+			float _DepthMaskGlobalMask;
+			float _DepthMaskGlobalMaskBlendType;
+			float _DepthColorToggle;
+			float _DepthColorBlendMode;
+			#if defined(PROP_DEPTHTEXTURE) || !defined(OPTIMIZER_ENABLED)
+			Texture2D _DepthTexture;
+			#endif
+			float4 _DepthTexture_ST;
+			float2 _DepthTexturePan;
+			float _DepthTextureUV;
+			float3 _DepthColor;
+			float _DepthColorThemeIndex;
+			float _DepthColorMinDepth;
+			float _DepthColorMaxDepth;
+			float _DepthColorMinValue;
+			float _DepthColorMaxValue;
+			float _DepthEmissionStrength;
+			float _DepthAlphaToggle;
+			float _DepthAlphaMinValue;
+			float _DepthAlphaMaxValue;
+			float _DepthAlphaMinDepth;
+			float _DepthAlphaMaxDepth;
 			#endif
 			struct appdata
 			{
@@ -9022,7 +9295,7 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 			#endif // defined(_STOCHASTICMODE_DELIOT_HEITZ)
 			void applyAlphaOptions(inout PoiFragData poiFragData, in PoiMesh poiMesh, in PoiCam poiCam, in PoiMods poiMods)
 			{
-				poiFragData.alpha = saturate(poiFragData.alpha + 0.0);
+				poiFragData.alpha = saturate(poiFragData.alpha + -0.8);
 				if (0.0 > 0)
 				{
 					poiFragData.alpha = maskBlend(poiFragData.alpha, poiMods.globalMask[0.0 - 1], 2.0);
@@ -9115,8 +9388,82 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				#endif
 			}
 			#endif
+			#ifdef GRAIN
+			void applyDepthFX(inout PoiFragData poiFragData, in PoiCam poiCam, in PoiMesh poiMesh, in PoiMods poiMods)
+			{
+				float3 touchEmission = 0;
+				float perspectiveDivide = 1.0f / poiCam.clipPos.w;
+				float4 direction = poiCam.worldDirection * perspectiveDivide;
+				float2 screenPos = poiCam.posScreenSpace * perspectiveDivide;
+				if(!DepthTextureExists()) return;
+				float z = SampleScreenDepth(screenPos);
+				#if UNITY_REVERSED_Z
+				if (z == 0)
+				#else
+				if (z == 1)
+				#endif
+				return;
+				float depth = CorrectedLinearEyeDepth(z, direction.w);
+				float3 worldpos = direction * depth + _WorldSpaceCameraPos.xyz;
+				float diff = distance(worldpos, poiMesh.worldPos);
+				#if defined(PROP_DEPTHMASK) || !defined(OPTIMIZER_ENABLED)
+				float depthMask = POI2D_SAMPLER_PAN(_DepthMask, _MainTex, poiUV(poiMesh.uv[0.0], float4(1,1,0,0)), float4(0,0,0,0))[0.0];
+				#else
+				float depthMask = 1;
+				#endif
+				if (0.0 > 0)
+				{
+					depthMask = maskBlend(depthMask, poiMods.globalMask[0.0 - 1], 2.0);
+				}
+				if (0.0)
+				{
+					float colorBlendAlpha = lerp(1.0, 0.0, remapClamped(0.0, 1.0, diff));
+					#if defined(PROP_DEPTHTEXTURE) || !defined(OPTIMIZER_ENABLED)
+					float2 depthTextureUV = float2(0, 0);
+					if (0.0 == 8)
+					{
+						depthTextureUV = lerp(0, 1, remapClamped(0.0, 1.0, diff));
+					}
+					else
+					{
+						depthTextureUV = poiMesh.uv[0.0];
+					}
+					float3 depthColor = POI2D_SAMPLER_PAN(_DepthTexture, _MainTex, poiUV(depthTextureUV, float4(1,1,0,0)), float4(0,0,0,0)).rgb * poiThemeColor(poiMods, float4(1,1,1,1), 0.0);
+					#else
+					float3 depthColor = poiThemeColor(poiMods, float4(1,1,1,1), 0.0);
+					#endif
+					switch(0.0)
+					{
+						case 0:
+						{
+							poiFragData.baseColor = lerp(poiFragData.baseColor, depthColor, colorBlendAlpha * depthMask);
+							break;
+						}
+						case 1:
+						{
+							poiFragData.baseColor *= lerp(1, depthColor, colorBlendAlpha * depthMask);
+							break;
+						}
+						case 2:
+						{
+							poiFragData.baseColor = saturate(poiFragData.baseColor + lerp(0, depthColor, colorBlendAlpha * depthMask));
+							break;
+						}
+					}
+					poiFragData.emission += depthColor * colorBlendAlpha * 0.0 * depthMask;
+				}
+				if (1.0)
+				{
+					poiFragData.alpha *= lerp(poiFragData.alpha, saturate(lerp(1.0, 0.2, remapClamped(0.0, 1.0, diff))), depthMask);
+				}
+			}
+			#endif
 			float4 frag(VertexOut i, uint facing : SV_IsFrontFace) : SV_Target
 			{
+				#ifdef GRAIN
+				clip(-1);
+				return 0;
+				#endif
 				UNITY_SETUP_INSTANCE_ID(i);
 				UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
 				PoiSHAr = unity_SHAr;
@@ -9260,8 +9607,8 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				poiCam.worldDirection.w = i.worldDir;
 				poiFragData.baseColor = mainTexture.rgb;
 				#if !defined(POI_PASS_BASETWO) && !defined(POI_PASS_ADDTWO)
-				poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,0.4666667).rgb, 0.0);
-				poiFragData.alpha = mainTexture.a * float4(1,1,0,0.4666667).a;
+				poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,1).rgb, 0.0);
+				poiFragData.alpha = mainTexture.a * float4(1,1,0,1).a;
 				#else
 				if(_TwoPassOverrideFirstPassColor)
 				{
@@ -9270,8 +9617,8 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 				}
 				else
 				{
-					poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,0.4666667).rgb, 0.0);
-					poiFragData.alpha = mainTexture.a * float4(1,1,0,0.4666667).a;
+					poiFragData.baseColor *= poiThemeColor(poiMods, float4(1,1,0,1).rgb, 0.0);
+					poiFragData.alpha = mainTexture.a * float4(1,1,0,1).a;
 				}
 				#endif
 				if (2.0)
@@ -9289,6 +9636,9 @@ Shader "Hidden/Locked/.poiyomi/Poiyomi Toon/e9bc67de4154dfb4894c085f19573cb4"
 					if (2.0 == 4) poiFragData.alpha = saturate(poiFragData.alpha - alphaMask);
 				}
 				applyAlphaOptions(poiFragData, poiMesh, poiCam, poiMods);
+				#ifdef GRAIN
+				applyDepthFX(poiFragData, poiCam, poiMesh, poiMods);
+				#endif
 				#ifdef POI_MIRROR
 				applyMirror(poiFragData, poiMesh, poiMods);
 				#endif
