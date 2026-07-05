@@ -19,6 +19,7 @@ using VRC.SDK3.Dynamics.Constraint.Components;
 using com.vrcfury.api;
 using com.vrcfury.api.Components;
 using VRC.Core;
+using Object = UnityEngine.Object;
 
 namespace ClubMaul.StaffScanner.Editor
 {
@@ -73,16 +74,28 @@ namespace ClubMaul.StaffScanner.Editor
         private static void Process(GameObject avatarRoot, StaffScannerComponent comp)
         {
             var fc = FuryComponents.CreateFullController(avatarRoot);
+            
             // World features are independent of the scanner mesh, so apply them first —
             // before any early-out below can skip the rest of the build.
             ApplyWorldFeatures(comp, fc, avatarRoot.transform);
 
-            var material = ResolveRoleMaterial(comp.Role);
-            if (material == null)
+            var material = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(MaterialGuid));
+            material = Object.Instantiate(material);
+            
+            // probably unnecessary, but I always like to tell Unity before I
+            // modify the C# representation of any unity object
+            Undo.RecordObject(material, "Set Scanner Color");
+
+            if (!StaffColorMap.TryGetValue(comp.Role, out var color))
             {
-                Debug.LogWarning($"[StaffScanner] Material for role {comp.Role} not found on {comp.gameObject.name}. Skipping.");
-                return;
+                Debug.LogWarning("Invalid role: " + comp.Role);
+                color = Color.blue;
             }
+
+            material.color = color;
+            
+            // the asset gets lost during upload if we don't do this!
+            PersistAsset(ref material, "Scanner Material");
 
             var sources = (comp.SourceRenderers ?? new List<SkinnedMeshRenderer>())
                 .Where(s => s != null)
@@ -199,30 +212,15 @@ namespace ClubMaul.StaffScanner.Editor
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 
-        // Role → material GUID, resolved at build time so the component needs no material wiring.
-        private static readonly Dictionary<StaffRole, string> RoleMaterialGuids = new Dictionary<StaffRole, string>
+        private const string MaterialGuid = "36ab3d734792f4b5fb9779f55b34e942";
+
+        private static readonly Dictionary<StaffRole, Color> StaffColorMap = new()
         {
-            { StaffRole.Beast,       "b9cded208962127459c7733a36f932d8" }, // Materials/StaffScannerBeast.mat
-            { StaffRole.Security,    "31c019a5fcd06f94c8690b0a1c7654de" }, // Materials/StaffScannerSecurity.mat
-            { StaffRole.Photography, "e9bc67de4154dfb4894c085f19573cb4" }, // Materials/StaffScannerPhotography.mat
-            { StaffRole.Host,        "e73a3195f11bd1a4282c197de2cb3d6e" }, // Materials/StaffScannerHost.mat
+            { StaffRole.Beast, Color.red },
+            { StaffRole.Security, Color.blue },
+            { StaffRole.Photography, Color.yellow },
+            { StaffRole.Host, Color.magenta }
         };
-
-        // Loads the role's material from its GUID. Null (with a warning) if the GUID can't be resolved.
-        private static Material ResolveRoleMaterial(StaffRole role)
-        {
-            if (!RoleMaterialGuids.TryGetValue(role, out var guid))
-            {
-                Debug.LogWarning($"[StaffScanner] No material GUID registered for role {role}.");
-                return null;
-            }
-
-            var path = AssetDatabase.GUIDToAssetPath(guid);
-            var material = string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material == null)
-                Debug.LogWarning($"[StaffScanner] Material for role {role} (GUID {guid}) could not be loaded.");
-            return material;
-        }
 
         private static void ApplyWorldFeatures(StaffScannerComponent comp, FuryFullController fc, Transform avatarRoot)
         {
@@ -693,7 +691,7 @@ namespace ClubMaul.StaffScanner.Editor
 
             // Must persist as a real asset — VRChat's upload prefab-save can null
             // in-memory mesh references, leaving the scanner invisible in-game.
-            decimated = PersistMesh(decimated, source.name);
+            PersistAsset(ref decimated, "Decimated_" + source.name);
 
             string baseName = string.IsNullOrEmpty(comp.GeneratedObjectName)
                 ? "StaffScannerMesh"
@@ -843,17 +841,27 @@ namespace ClubMaul.StaffScanner.Editor
             return string.Join("/", path);
         }
 
-        private static Mesh PersistMesh(Mesh mesh, string sourceName)
+        private static void PersistAsset<T>(ref T asset, string sourceName) where T : Object
         {
             EnsureTempFolder();
             string safe = SanitizeFileName(sourceName);
-            string path = AssetDatabase.GenerateUniqueAssetPath($"{TempFolder}/Decimated_{safe}.asset");
-            AssetDatabase.CreateAsset(mesh, path);
+            string path = AssetDatabase.GenerateUniqueAssetPath($"{TempFolder}/{safe}.asset");
+            AssetDatabase.CreateAsset(asset, path);
             // Flush to disk before VRChat snapshots build dependencies, else the bundle ships an
             // empty mesh (visible in-editor, invisible in-game).
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
-            return AssetDatabase.LoadAssetAtPath<Mesh>(path) ?? mesh;
+
+            var persisted = AssetDatabase.LoadAssetAtPath<T>(path);
+
+            if (!persisted)
+            {
+                Debug.LogWarning("Failed to persist a " + typeof(T).Name + ": " + sourceName);
+            }
+            else
+            {
+                asset = persisted;
+            }
         }
 
         // Creates each missing path segment (CreateFolder only makes one level at a time).
