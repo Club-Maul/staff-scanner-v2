@@ -32,9 +32,11 @@ namespace ClubMaul.StaffScanner.Editor
         private const string SphereParam = "Internal/Sphere Mode";    // Non-synced (per-viewer); see BuildSphereReceiver.
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
+        private static readonly Vector3 OpacityOffset = new Vector3(0, 2, 0);
         private const string OpacityControlParam = "Control/Opacity";
         private const string OpacityReceiveParam = "Internal/Opacity";
 
+        private static readonly Vector3 XrayOffset = new Vector3(0, 4, 0);
         private const string XrayControlParam = "Control/Xray";
         private const string XrayReceiveParam = "Internal/Xray";
         
@@ -281,14 +283,6 @@ namespace ClubMaul.StaffScanner.Editor
 
             var mainHolder = new GameObject("Main Contacts");
             mainHolder.transform.SetParent(contacts, false);
-
-            var opacityHolder = new GameObject("Opacity Contacts");
-            opacityHolder.transform.SetParent(contacts, false);
-            opacityHolder.transform.localPosition = new Vector3(0, 2, 0);
-
-            var xrayHolder = new GameObject("Xray Contacts");
-            xrayHolder.transform.SetParent(contacts, false);
-            xrayHolder.transform.localPosition = new Vector3(0, 4, 0);
             
             // Toggles must live on an always-active object; only the component is stripped, not its GameObject.
             var menuHost = comp.gameObject;
@@ -309,7 +303,7 @@ namespace ClubMaul.StaffScanner.Editor
             AddMenuToggle(menuHost, menuPath + "/Visuals", "Sphere View", sphereSender, saved: true);
             BuildSphereReceiver(contacts);
 
-            var opacityPair = BuildFloatPair(avatarRoot, opacityHolder.transform, "Opacity", "Internal/Opacity",
+            var opacityPair = BuildFloatPair(avatarRoot, contacts, OpacityOffset, "Opacity", "Internal/Opacity",
                 "ClubMaul/Scanner/Opacity");
 
             {
@@ -324,7 +318,7 @@ namespace ClubMaul.StaffScanner.Editor
                 fc.AddParams(opacityParams);
             }
 
-            var xrayPair = BuildFloatPair(avatarRoot, xrayHolder.transform, "Xray", "Internal/Xray",
+            var xrayPair = BuildFloatPair(avatarRoot, contacts, XrayOffset, "Xray", "Internal/Xray",
                 "ClubMaul/Scanner/Xray");
 
             {
@@ -569,24 +563,29 @@ namespace ClubMaul.StaffScanner.Editor
                 return (tree, menu, paramz);
             }
         }
-        
+
         /// <summary>
         /// Creates a contact pair that can convey a float value.
         /// </summary>
         /// <param name="root">Where to record the animations from. A VRCF Full Controller should be placed here.</param>
         /// <param name="parent">Where to place the sender and receiver.</param>
+        /// <param name="offset">How far from the origin to place the contacts. This may help prevent issues with too many overlapping contacts.</param>
         /// <param name="name">A name to use for the objects and animations. This has no effect on functionality.</param>
         /// <param name="paramName">The parameter to set. Note that the value will actually range from 0.5 to 1. A value of 0 means that no sender exists.</param>
         /// <param name="tag">The collision tag to use. This should be unique.</param>
         /// <returns></returns>
-        private static FloatPair BuildFloatPair(Transform root, Transform parent, string name,
+        private static FloatPair BuildFloatPair(Transform root, Transform parent, Vector3 offset, string name,
             string paramName, string tag)
         {
+            var holder = new GameObject(name + " Contacts");
             var senderHolder = new GameObject(name + " Sender");
-            var receiverHolder = new GameObject(name + "Receiver");
+            var receiverHolder = new GameObject(name + " Receiver");
 
-            senderHolder.transform.SetParent(parent, false);
-            receiverHolder.transform.SetParent(parent, false);
+            holder.transform.SetParent(parent, false);
+            holder.transform.localPosition = offset;
+
+            senderHolder.transform.SetParent(holder.transform, false);
+            receiverHolder.transform.SetParent(holder.transform, false);
 
             var sender = senderHolder.AddComponent<VRCContactSender>();
             var receiver = receiverHolder.AddComponent<VRCContactReceiver>();
