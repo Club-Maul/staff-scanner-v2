@@ -313,7 +313,7 @@ namespace ClubMaul.StaffScanner.Editor
                 "ClubMaul/Scanner/Opacity");
 
             {
-                var (opacityTree, opacityMenu, opacityParams) = opacityPair.Generate(OpacityControlParam);
+                var (opacityTree, opacityMenu, opacityParams) = opacityPair.Generate(OpacityControlParam, defaultValue: 0.3f);
 
                 dbt.AddChild(opacityTree);
                 
@@ -328,7 +328,7 @@ namespace ClubMaul.StaffScanner.Editor
                 "ClubMaul/Scanner/Xray");
 
             {
-                var (xrayTree, xrayMenu, xrayParams) = xrayPair.Generate(XrayControlParam);
+                var (xrayTree, xrayMenu, xrayParams) = xrayPair.Generate(XrayControlParam, defaultValue: 0.5f);
 
                 dbt.AddChild(xrayTree);
                 
@@ -518,7 +518,7 @@ namespace ClubMaul.StaffScanner.Editor
             public AnimationClip zeroClip;
             public AnimationClip oneClip;
 
-            public (BlendTree, VRCExpressionsMenu, VRCExpressionParameters) Generate(string controlParam)
+            public (BlendTree, VRCExpressionsMenu, VRCExpressionParameters) Generate(string controlParam, float defaultValue = 0.5f)
             {
                 var tree = new BlendTree
                 {
@@ -543,7 +543,7 @@ namespace ClubMaul.StaffScanner.Editor
                     new VRCExpressionParameters.Parameter
                     {
                         name = controlParam,
-                        defaultValue = 0.5f,
+                        defaultValue = defaultValue,
                         networkSynced = false,
                         saved = true,
                         valueType = VRCExpressionParameters.ValueType.Float
