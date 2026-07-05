@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Outline materials are a bit less opaque now
+- Outline materials now appear through walls
+
 ## [2.0.0] - 2026-07-03
 
 ### Changed
