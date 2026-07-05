@@ -32,11 +32,11 @@ namespace ClubMaul.StaffScanner.Editor
         private const string SphereParam = "Internal/Sphere Mode";    // Non-synced (per-viewer); see BuildSphereReceiver.
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
-        private static readonly Vector3 OpacityOffset = new Vector3(0, 2, 0);
+        private static readonly Vector3 OpacityOffset = new Vector3(0, 10, 0);
         private const string OpacityControlParam = "Control/Opacity";
         private const string OpacityReceiveParam = "Internal/Opacity";
 
-        private static readonly Vector3 XrayOffset = new Vector3(0, 4, 0);
+        private static readonly Vector3 XrayOffset = new Vector3(0, 20, 0);
         private const string XrayControlParam = "Control/Xray";
         private const string XrayReceiveParam = "Internal/Xray";
         
