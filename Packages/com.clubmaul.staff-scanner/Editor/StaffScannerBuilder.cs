@@ -3,8 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -16,16 +18,22 @@ using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Dynamics.Constraint.Components;
 using com.vrcfury.api;
 using com.vrcfury.api.Components;
+using VRC.Core;
 
 namespace ClubMaul.StaffScanner.Editor
 {
     public class StaffScannerBuilder : IVRCSDKPreprocessAvatarCallback
     {
+        private const string OneParam = "Constant/One";
+        
         private const string ShowParam  = "ClubMaul/Scanner/Show";
         private const string LocalParam = "IsLocal";      // VRChat built-in; true only on the wearer's own client.
         private const string SphereParam = "Internal/Sphere Mode";    // Non-synced (per-viewer); see BuildSphereReceiver.
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
+        private const string OpacityControlParam = "Control/Opacity";
+        private const string OpacityReceiveParam = "Internal/Opacity";
+        
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
         private static string TempFolder
         {
@@ -64,9 +72,10 @@ namespace ClubMaul.StaffScanner.Editor
 
         private static void Process(GameObject avatarRoot, StaffScannerComponent comp)
         {
+            var fc = FuryComponents.CreateFullController(avatarRoot);
             // World features are independent of the scanner mesh, so apply them first —
             // before any early-out below can skip the rest of the build.
-            ApplyWorldFeatures(comp);
+            ApplyWorldFeatures(comp, fc, avatarRoot.transform);
 
             var material = ResolveRoleMaterial(comp.Role);
             if (material == null)
@@ -122,7 +131,13 @@ namespace ClubMaul.StaffScanner.Editor
                 }
             };
 
-            var fc = FuryComponents.CreateFullController(avatarRoot);
+            List<GameObject> visualTargets = new();
+
+            visualTargets.AddRange(generated);
+            visualTargets.AddRange(sphereTargets);
+
+            InstallVisualControls(avatarRoot.transform, fc, visualTargets);
+
             fc.AddController(controller, VRCAvatarDescriptor.AnimLayerType.FX);
             fc.AddParams(expParams);
 
@@ -209,9 +224,67 @@ namespace ClubMaul.StaffScanner.Editor
             return material;
         }
 
-        private static void ApplyWorldFeatures(StaffScannerComponent comp)
+        private static void ApplyWorldFeatures(StaffScannerComponent comp, FuryFullController fc, Transform avatarRoot)
         {
+            var controller = new AnimatorController
+            {
+                name = "World Features Controller"
+            };
+
+            controller.AddParameter(OneParam, AnimatorControllerParameterType.Float);
+    
+            {
+                var parameters = controller.parameters;
+                parameters[^1].defaultFloat = 1f;
+                controller.parameters = parameters;
+            }
+            
+            var machine = new AnimatorStateMachine
+            {
+                name = "Controls Machine"
+            };
+
+            var layer = new AnimatorControllerLayer
+            {
+                name = "Controls",
+                stateMachine = machine
+            };
+
+            var dbt = new BlendTree
+            {
+                name = "Root Tree",
+                blendType = BlendTreeType.Direct
+            };
+
+            var dbtState = machine.AddState("Blend");
+            dbtState.motion = dbt;
+
+            controller.AddLayer(layer);
+
+            var paramz = ScriptableObject.CreateInstance<VRCExpressionParameters>();
+            paramz.name = "World Features Parameters";
+            paramz.parameters = new VRCExpressionParameters.Parameter[0];
+
+            var menu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
+
+            menu.name = "World Features Menu";
+            menu.Parameters = paramz;
+            
+            fc.AddController(controller, VRCAvatarDescriptor.AnimLayerType.FX);
+            fc.AddParams(paramz);
+            fc.AddMenu(menu, comp.GetMenuPath());
+            
             var contacts = EnsureContactsGroup(comp.transform);
+            
+            // To avoid overlapping too many contact sender/receivers, we'll stagger them spatially.
+
+            var mainHolder = new GameObject("Main Contacts");
+            mainHolder.transform.SetParent(contacts, false);
+
+            var opacityHolder = new GameObject("Opacity Contacts");
+            opacityHolder.transform.SetParent(contacts, false);
+            opacityHolder.transform.localPosition = new Vector3(0, 2, 0);
+            
             // Toggles must live on an always-active object; only the component is stripped, not its GameObject.
             var menuHost = comp.gameObject;
             var menuPath = comp.GetMenuPath();
@@ -231,6 +304,21 @@ namespace ClubMaul.StaffScanner.Editor
             AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
             BuildSphereReceiver(contacts);
 
+            var opacityPair = BuildFloatPair(avatarRoot, opacityHolder.transform, "Opacity", "Internal/Opacity",
+                "ClubMaul/Scanner/Opacity");
+
+            {
+                var (opacityTree, opacityMenu, opacityParams) = opacityPair.Generate(OpacityControlParam);
+
+                dbt.AddChild(opacityTree);
+                
+                controller.AddParameter(OpacityControlParam, AnimatorControllerParameterType.Float);
+                controller.AddParameter(OpacityReceiveParam, AnimatorControllerParameterType.Float);
+
+                fc.AddMenu(opacityMenu, menuPath);
+                fc.AddParams(opacityParams);
+            }
+
             // Optional world features — Beast role only.
             bool isBeast = comp.Role == StaffRole.Beast;
             foreach (var feature in comp.GetWorldFeatures())
@@ -248,6 +336,17 @@ namespace ClubMaul.StaffScanner.Editor
 
             if (isBeast) ApplyPlugins(comp, contacts, menuHost, menuPath);
             SetMenuIcon(menuHost, menuPath);
+
+            {
+                var children = dbt.children;
+
+                for (int idx = 0; idx < children.Length; ++idx)
+                {
+                    children[idx].directBlendParameter = OneParam;
+                }
+
+                dbt.children = children;
+            }
         }
 
         // Each plugin adds its contacts under a per-plugin sub-folder of the menu.
@@ -389,6 +488,129 @@ namespace ClubMaul.StaffScanner.Editor
             receiver.parameter     = SphereParam;
 
             return go;
+        }
+
+        private class FloatPair
+        {
+            public string name;
+            public VRCContactSender sender;
+            public VRCContactReceiver receiver;
+            public AnimationClip zeroClip;
+            public AnimationClip oneClip;
+
+            public (BlendTree, VRCExpressionsMenu, VRCExpressionParameters) Generate(string controlParam)
+            {
+                var tree = new BlendTree
+                {
+                    name = name,
+                    blendType = BlendTreeType.Simple1D,
+                    blendParameter = controlParam,
+                    useAutomaticThresholds = true
+                };
+
+                tree.AddChild(zeroClip);
+                tree.AddChild(oneClip);
+
+                var paramz = ScriptableObject.CreateInstance<VRCExpressionParameters>();
+                paramz.name = "Float Control Param - " + name;
+
+                var menu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
+                menu.name = "Float Control Menu - " + name;
+                menu.Parameters = paramz;
+
+                paramz.parameters = new[]
+                {
+                    new VRCExpressionParameters.Parameter
+                    {
+                        name = controlParam,
+                        defaultValue = 0.5f,
+                        networkSynced = false,
+                        saved = true,
+                        valueType = VRCExpressionParameters.ValueType.Float
+                    }
+                };
+
+                menu.controls = new List<VRCExpressionsMenu.Control>
+                {
+                    new VRCExpressionsMenu.Control
+                    {
+                        name = name,
+                        type = VRCExpressionsMenu.Control.ControlType.RadialPuppet,
+                        subParameters = new[]
+                        {
+                            new VRCExpressionsMenu.Control.Parameter
+                            {
+                                name = controlParam
+                            }
+                        }
+                    }
+                };
+
+                return (tree, menu, paramz);
+            }
+        }
+        
+        /// <summary>
+        /// Creates a contact pair that can convey a float value.
+        /// </summary>
+        /// <param name="root">Where to record the animations from. A VRCF Full Controller should be placed here.</param>
+        /// <param name="parent">Where to place the sender and receiver.</param>
+        /// <param name="name">A name to use for the objects and animations. This has no effect on functionality.</param>
+        /// <param name="paramName">The parameter to set. Note that the value will actually range from 0.5 to 1. A value of 0 means that no sender exists.</param>
+        /// <param name="tag">The collision tag to use. This should be unique.</param>
+        /// <returns></returns>
+        private static FloatPair BuildFloatPair(Transform root, Transform parent, string name,
+            string paramName, string tag)
+        {
+            var senderHolder = new GameObject(name + " Sender");
+            var receiverHolder = new GameObject(name + "Receiver");
+
+            senderHolder.transform.SetParent(parent, false);
+            receiverHolder.transform.SetParent(parent, false);
+
+            var sender = senderHolder.AddComponent<VRCContactSender>();
+            var receiver = receiverHolder.AddComponent<VRCContactReceiver>();
+
+            sender.shapeType = receiver.shapeType       = ContactBase.ShapeType.Sphere;
+            sender.radius = receiver.radius             = SenderRadius;
+            sender.position = receiver.position         = Vector3.zero;
+            sender.rotation = receiver.rotation         = Quaternion.identity;
+
+            sender.localOnly = true;
+            receiver.localOnly = false;
+
+            sender.collisionTags = receiver.collisionTags = new List<string> { tag };
+
+            receiver.allowSelf = false;
+            receiver.allowOthers = true;
+            receiver.receiverType = ContactReceiver.ReceiverType.Proximity;
+            receiver.parameter = paramName;
+
+            var zeroClip = new AnimationClip
+            {
+                name = name + " - Zero"
+            };
+            var oneClip = new AnimationClip
+            {
+                name = name + " - One"
+            };
+
+            zeroClip.SetCurve(sender.transform.GetHierarchyPath(root), typeof(Transform), "m_LocalPosition.x",
+                AnimationCurve.Constant(0, 1, SenderRadius * 1.5f));
+
+            oneClip.SetCurve(sender.transform.GetHierarchyPath(root), typeof(Transform), "m_LocalPosition.x",
+                AnimationCurve.Constant(0, 1, SenderRadius));
+
+            FloatPair result = new()
+            {
+                name = name,
+                sender = sender,
+                receiver = receiver,
+                zeroClip = zeroClip,
+                oneClip = oneClip
+            };
+
+            return result;
         }
 
         // VRCFury menu Toggle that turns 'target' on while the item is on. holdButton = momentary Button.
@@ -662,6 +884,99 @@ namespace ClubMaul.StaffScanner.Editor
             foreach (var c in System.IO.Path.GetInvalidFileNameChars())
                 name = name.Replace(c, '_');
             return name;
+        }
+
+        private static void InstallVisualControls(Transform avatarRoot, FuryFullController fc, List<GameObject> targets)
+        {
+            var controller = new AnimatorController
+            {
+                name = "Visual Controller"
+            };
+            
+            fc.AddController(controller, VRCAvatarDescriptor.AnimLayerType.FX);
+
+            controller.AddParameter(OneParam, AnimatorControllerParameterType.Float);
+
+            {
+                var parameters = controller.parameters;
+                parameters[^1].defaultFloat = 1f;
+                controller.parameters = parameters;
+            }
+
+            controller.AddParameter(OpacityReceiveParam, AnimatorControllerParameterType.Float);
+
+            var machine = new AnimatorStateMachine
+            {
+                name = "Visual Machine"
+            };
+
+            var layer = new AnimatorControllerLayer
+            {
+                name = "Visuals",
+                stateMachine = machine
+            };
+
+            controller.AddLayer(layer);
+
+            var state = machine.AddState("Blend");
+
+            var root = new BlendTree
+            {
+                name = "Root Tree",
+                blendType = BlendTreeType.Direct
+            };
+
+            state.motion = root;
+
+            var opacityTree = new BlendTree
+            {
+                name = "Opacity Control",
+                blendParameter = OpacityReceiveParam
+            };
+
+            root.AddChild(opacityTree);
+            
+            var opacityDefaultClip = new AnimationClip
+            {
+                name = "Opacity - Default"
+            };
+
+            var opacityMinClip = new AnimationClip
+            {
+                name = "Opacity - Min"
+            };
+
+            var opacityMaxClip = new AnimationClip
+            {
+                name = "Opacity - Max"
+            };
+
+            opacityTree.AddChild(opacityDefaultClip);
+            opacityTree.AddChild(opacityMinClip);
+            opacityTree.AddChild(opacityMaxClip);
+
+            {
+                var type = typeof(Renderer);
+
+                foreach (var target in targets)
+                {
+                    var path = target.transform.GetHierarchyPath(avatarRoot);
+                    opacityDefaultClip.SetCurve(path, type, "material._AlphaMod", AnimationCurve.Constant(0, 1, -0.7f));
+                    opacityMinClip.SetCurve(path, type, "material._AlphaMod", AnimationCurve.Constant(0, 1, -1f));
+                    opacityMaxClip.SetCurve(path, type, "material._AlphaMod", AnimationCurve.Constant(0, 1, 0f));
+                }
+            }
+
+            {
+                var children = root.children;
+
+                for (int idx = 0; idx < children.Length; ++idx)
+                {
+                    children[idx].directBlendParameter = OneParam;
+                }
+
+                root.children = children;
+            }
         }
     }
 }
