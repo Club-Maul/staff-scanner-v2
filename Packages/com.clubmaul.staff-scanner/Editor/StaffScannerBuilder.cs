@@ -34,6 +34,9 @@ namespace ClubMaul.StaffScanner.Editor
 
         private const string OpacityControlParam = "Control/Opacity";
         private const string OpacityReceiveParam = "Internal/Opacity";
+
+        private const string XrayControlParam = "Control/Xray";
+        private const string XrayReceiveParam = "Internal/Xray";
         
         // Resolved from Misc/World.prefab's GUID so it follows the package if it's moved/renamed.
         private static string TempFolder
@@ -282,6 +285,10 @@ namespace ClubMaul.StaffScanner.Editor
             var opacityHolder = new GameObject("Opacity Contacts");
             opacityHolder.transform.SetParent(contacts, false);
             opacityHolder.transform.localPosition = new Vector3(0, 2, 0);
+
+            var xrayHolder = new GameObject("Xray Contacts");
+            xrayHolder.transform.SetParent(contacts, false);
+            xrayHolder.transform.localPosition = new Vector3(0, 4, 0);
             
             // Toggles must live on an always-active object; only the component is stripped, not its GameObject.
             var menuHost = comp.gameObject;
@@ -299,7 +306,7 @@ namespace ClubMaul.StaffScanner.Editor
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
             // enabling it shows other scanners as spheres to you only.
             var sphereSender = BuildSender(contacts, "SphereViewSender", SphereTag, localOnly: true);
-            AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
+            AddMenuToggle(menuHost, menuPath + "/Visuals", "Sphere View", sphereSender, saved: true);
             BuildSphereReceiver(contacts);
 
             var opacityPair = BuildFloatPair(avatarRoot, opacityHolder.transform, "Opacity", "Internal/Opacity",
@@ -313,8 +320,23 @@ namespace ClubMaul.StaffScanner.Editor
                 controller.AddParameter(OpacityControlParam, AnimatorControllerParameterType.Float);
                 controller.AddParameter(OpacityReceiveParam, AnimatorControllerParameterType.Float);
 
-                fc.AddMenu(opacityMenu, menuPath);
+                fc.AddMenu(opacityMenu, menuPath + "/Visuals");
                 fc.AddParams(opacityParams);
+            }
+
+            var xrayPair = BuildFloatPair(avatarRoot, xrayHolder.transform, "Xray", "Internal/Xray",
+                "ClubMaul/Scanner/Xray");
+
+            {
+                var (xrayTree, xrayMenu, xrayParams) = xrayPair.Generate(XrayControlParam);
+
+                dbt.AddChild(xrayTree);
+                
+                controller.AddParameter(XrayControlParam, AnimatorControllerParameterType.Float);
+                controller.AddParameter(XrayReceiveParam, AnimatorControllerParameterType.Float);
+
+                fc.AddMenu(xrayMenu, menuPath + "/Visuals");
+                fc.AddParams(xrayParams);
             }
 
             // Optional world features — Beast role only.
@@ -912,6 +934,7 @@ namespace ClubMaul.StaffScanner.Editor
             }
 
             controller.AddParameter(OpacityReceiveParam, AnimatorControllerParameterType.Float);
+            controller.AddParameter(XrayReceiveParam, AnimatorControllerParameterType.Float);
 
             var machine = new AnimatorStateMachine
             {
@@ -972,6 +995,45 @@ namespace ClubMaul.StaffScanner.Editor
                     opacityDefaultClip.SetCurve(path, type, "material._AlphaMod", AnimationCurve.Constant(0, 1, -0.7f));
                     opacityMinClip.SetCurve(path, type, "material._AlphaMod", AnimationCurve.Constant(0, 1, -1f));
                     opacityMaxClip.SetCurve(path, type, "material._AlphaMod", AnimationCurve.Constant(0, 1, 0f));
+                }
+            }
+
+            var xrayTree = new BlendTree
+            {
+                name = "Xray Control",
+                blendParameter = XrayReceiveParam
+            };
+
+            root.AddChild(xrayTree);
+            
+            var xrayDefaultClip = new AnimationClip
+            {
+                name = "Xray - Default"
+            };
+
+            var xrayMinClip = new AnimationClip
+            {
+                name = "Xray - Min"
+            };
+
+            var xrayMaxClip = new AnimationClip
+            {
+                name = "Xray - Max"
+            };
+
+            xrayTree.AddChild(xrayDefaultClip);
+            xrayTree.AddChild(xrayMinClip);
+            xrayTree.AddChild(xrayMaxClip);
+
+            {
+                var type = typeof(Renderer);
+
+                foreach (var target in targets)
+                {
+                    var path = target.transform.GetHierarchyPath(avatarRoot);
+                    xrayDefaultClip.SetCurve(path, type, "material._DepthAlphaMaxValue", AnimationCurve.Constant(0, 1, 0.25f));
+                    xrayMinClip.SetCurve(path, type, "material._DepthAlphaMaxValue", AnimationCurve.Constant(0, 1, 0f));
+                    xrayMaxClip.SetCurve(path, type, "material._DepthAlphaMaxValue", AnimationCurve.Constant(0, 1, 1f));
                 }
             }
 
