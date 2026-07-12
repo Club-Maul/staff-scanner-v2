@@ -8,6 +8,13 @@ All notable changes to this package are documented here. This project adheres to
 
 - Controls for normal and x-ray opacity
 
+## [2.0.2] - 2026-07-12
+
+### Changed
+
+- The visuals now live on the UiMenu layer
+  - This prevents things like VRCLens from seeing them
+
 ## [2.0.1] - 2026-07-04
 
 ### Changed

@@ -180,6 +180,7 @@ namespace ClubMaul.StaffScanner.Editor
             UnityEngine.Object.DestroyImmediate(temp);
 
             var go = new GameObject("StaffScannerSphere");
+            go.layer = LayerMask.NameToLayer("UiMenu");
             go.transform.SetParent(hips, false);
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;
@@ -723,6 +724,7 @@ namespace ClubMaul.StaffScanner.Editor
             // Fallback when source is on the avatar root itself so we stay inside the avatar tree.
             var parent = source.transform.parent != null ? source.transform.parent : source.transform;
             var go = new GameObject(goName);
+            go.layer = LayerMask.NameToLayer("UiMenu");
             go.transform.SetParent(parent, false);
             if (source.transform.parent != null)
             {
