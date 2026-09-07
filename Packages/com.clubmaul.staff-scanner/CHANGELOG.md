@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] - 2026-09-07
+
+### Added
+
+- **Moonbase Delta module.** A plugin asset for the Moonbase Delta world: drop it into the component's **Plugins** list to get **Door Lockdown** (`Moon/Lockdown`) and **Light Flicker** (`Moon/Flicker`) toggles in the Staff Scanner menu. Beast role only, like the other plugin contacts.
+
 ## [2.0.2] - 2026-07-12
 
 ### Changed
