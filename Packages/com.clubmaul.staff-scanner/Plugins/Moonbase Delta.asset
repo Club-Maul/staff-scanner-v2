@@ -19,3 +19,6 @@ MonoBehaviour:
   - Name: Light Flicker
     CollisionTag: Moon/Flicker
     ControlType: 0
+  - Name: Airlock Vent
+    CollisionTag: Moon/Vent
+    ControlType: 1

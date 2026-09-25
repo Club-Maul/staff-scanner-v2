@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2026-09-25
+
+### Added
+
+- **Airlock Vent** (`Moon/Vent`) in the Moonbase Delta module. A button: each press vents the airlock nearest you, blowing it open to the surface and pulling out anyone close by who isn't a hunter or phasing through doors. Beast role only, like the other plugin contacts.
+
 ## [2.0.3] - 2026-09-07
 
 ### Added
