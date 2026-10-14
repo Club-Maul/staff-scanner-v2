@@ -15,6 +15,9 @@ All notable changes to this package are documented here. This project adheres to
 ### Fixed
 
 - The outline no longer reacts to light at all.
+- If _CameraDepthTexture doesn't exist, the shader assumes it is occluded
+  - Previously, it would render as if it were *not* occluded, so it would strongly appear through walls.
+  - This is very unlikely to actually matter – most horror avatars have depth lights on them anyway.
 
 ## [2.0.4] - 2026-09-25
 

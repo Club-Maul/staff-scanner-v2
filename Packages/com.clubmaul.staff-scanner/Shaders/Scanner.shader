@@ -52,6 +52,14 @@ Shader "Unlit/Scanner"
 
             Texture2D _CameraDepthTexture;
             SamplerState sampler_linear_repeat;
+            
+            bool depth_exists()
+            {
+                uint width, height;
+                _CameraDepthTexture.GetDimensions(width, height);
+                
+                return width > 16;
+            }
 
             v2f vert(appdata v)
             {
@@ -71,7 +79,13 @@ Shader "Unlit/Scanner"
                 float range = distance(i.world_pos, _WorldSpaceCameraPos);
 
                 float delta = range - depth;
-                float occlusion = smoothstep(_OcclusionDepthStart, _OcclusionDepthEnd, delta);
+                
+                float occlusion;
+                
+                if (depth_exists())
+                    occlusion = smoothstep(_OcclusionDepthStart, _OcclusionDepthEnd, delta);
+                else
+                    occlusion = 1;
                 
                 float normal_alpha = smoothstep(_NormalRange, _NormalRange * 0.9, range);
                 float occluded_alpha = smoothstep(_OccludedRange, _OccludedRange * 0.9, range);
