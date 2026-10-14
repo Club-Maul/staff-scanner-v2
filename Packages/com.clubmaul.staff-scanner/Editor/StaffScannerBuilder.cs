@@ -16,6 +16,7 @@ using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Dynamics.Constraint.Components;
 using com.vrcfury.api;
 using com.vrcfury.api.Components;
+using Object = UnityEngine.Object;
 
 namespace ClubMaul.StaffScanner.Editor
 {
@@ -185,28 +186,33 @@ namespace ClubMaul.StaffScanner.Editor
         private const string WorldAnchorGuid = "c08f73a7f7ed6e240a00a92532499325"; // Misc/World.prefab
         private const string IconGuid       = "373ff8c870ce9d34e8b2c82ceaf2d385"; // Misc/Club_Maul_Flames.png
 
-        // Role → material GUID, resolved at build time so the component needs no material wiring.
-        private static readonly Dictionary<StaffRole, string> RoleMaterialGuids = new Dictionary<StaffRole, string>
+        private const string MaterialGuid = "b8ba2d7a33a254015b2637da20d1f909";
+
+        private static readonly Dictionary<StaffRole, Color> RoleColorMap = new()
         {
-            { StaffRole.Beast,       "b9cded208962127459c7733a36f932d8" }, // Materials/StaffScannerBeast.mat
-            { StaffRole.Security,    "31c019a5fcd06f94c8690b0a1c7654de" }, // Materials/StaffScannerSecurity.mat
-            { StaffRole.Photography, "e9bc67de4154dfb4894c085f19573cb4" }, // Materials/StaffScannerPhotography.mat
-            { StaffRole.Host,        "e73a3195f11bd1a4282c197de2cb3d6e" }, // Materials/StaffScannerHost.mat
+            { StaffRole.Beast,       Color.red }, // Materials/StaffScannerBeast.mat
+            { StaffRole.Security,    Color.blue }, // Materials/StaffScannerSecurity.mat
+            { StaffRole.Photography, new Color(0, 0.6f, 0f) }, // Materials/StaffScannerPhotography.mat
+            { StaffRole.Host,        new Color(1, 0.5f, 1f) }, // Materials/StaffScannerHost.mat
         };
 
         // Loads the role's material from its GUID. Null (with a warning) if the GUID can't be resolved.
         private static Material ResolveRoleMaterial(StaffRole role)
         {
-            if (!RoleMaterialGuids.TryGetValue(role, out var guid))
-            {
-                Debug.LogWarning($"[StaffScanner] No material GUID registered for role {role}.");
-                return null;
-            }
-
-            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var path = AssetDatabase.GUIDToAssetPath(MaterialGuid);
             var material = string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
-                Debug.LogWarning($"[StaffScanner] Material for role {role} (GUID {guid}) could not be loaded.");
+                Debug.LogWarning($"[StaffScanner] Material for role {role} (GUID {MaterialGuid}) could not be loaded.");
+
+            material = Object.Instantiate(material);
+
+            if (!RoleColorMap.TryGetValue(role, out var color))
+            {
+                Debug.LogWarning("Couldn't find a color for this role: " + role);
+                color = Color.gray;
+            }
+
+            material.color = color;
             return material;
         }
 
