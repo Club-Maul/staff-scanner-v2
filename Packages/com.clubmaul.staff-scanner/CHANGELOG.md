@@ -18,6 +18,8 @@ All notable changes to this package are documented here. This project adheres to
 - If _CameraDepthTexture doesn't exist, the shader assumes it is occluded
   - Previously, it would render as if it were *not* occluded, so it would strongly appear through walls.
   - This is very unlikely to actually matter – most horror avatars have depth lights on them anyway.
+- The scanner should no longer break after exiting safe mode.
+  - The contacts wait for a moment before activating when the avatar loads.
 
 ## [2.0.4] - 2026-09-25
 

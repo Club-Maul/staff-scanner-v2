@@ -16,6 +16,7 @@ using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Dynamics.Constraint.Components;
 using com.vrcfury.api;
 using com.vrcfury.api.Components;
+using VRC.Core;
 using Object = UnityEngine.Object;
 
 namespace ClubMaul.StaffScanner.Editor
@@ -65,11 +66,18 @@ namespace ClubMaul.StaffScanner.Editor
 
         private static void Process(GameObject avatarRoot, StaffScannerComponent comp)
         {
+            FuryFullController fc = FuryComponents.CreateFullController(comp.gameObject);
+
+            // This parameter is exposed to other systems. For example, a hunter avatar could
+            // react to it by turning off its post-processing effects.
+            fc.AddGlobalParam(ShowParam);
+            
             // World features are independent of the scanner mesh, so apply them first —
             // before any early-out below can skip the rest of the build.
-            ApplyWorldFeatures(comp);
-
+            ApplyWorldFeatures(comp, fc);
+            
             var material = ResolveRoleMaterial(comp.Role);
+            
             if (material == null)
             {
                 Debug.LogWarning($"[StaffScanner] Material for role {comp.Role} not found on {comp.gameObject.name}. Skipping.");
@@ -108,28 +116,9 @@ namespace ClubMaul.StaffScanner.Editor
             // Default-off avoids a one-frame flash on load before the FX layer settles.
             foreach (var go in generated) go.SetActive(false);
 
-            var controller = BuildAnimatorController(avatarRoot, generated, sphereTargets);
+            var meshController = BuildMeshAnimatorController(avatarRoot, generated, sphereTargets);
 
-            var expParams = ScriptableObject.CreateInstance<VRCExpressionParameters>();
-            expParams.parameters = new[]
-            {
-                new VRCExpressionParameters.Parameter
-                {
-                    name          = ShowParam,
-                    valueType     = VRCExpressionParameters.ValueType.Bool,
-                    saved         = false,
-                    defaultValue  = 0f,
-                    networkSynced = false
-                }
-            };
-
-            var fc = FuryComponents.CreateFullController(avatarRoot);
-            fc.AddController(controller, VRCAvatarDescriptor.AnimLayerType.FX);
-            fc.AddParams(expParams);
-
-            // This parameter is exposed to other systems. For example, a hunter avatar could
-            // react to it by turning off its post-processing effects.
-            fc.AddGlobalParam(ShowParam);
+            fc.AddController(meshController, VRCAvatarDescriptor.AnimLayerType.FX);
         }
 
         // Non-skinned sphere on the humanoid Hips with the scanner material. Default-off; null if non-humanoid.
@@ -218,21 +207,48 @@ namespace ClubMaul.StaffScanner.Editor
             return material;
         }
 
-        private static void ApplyWorldFeatures(StaffScannerComponent comp)
+        private const string BroadcastSelfParam = "Control/Broadcast Self";
+        private const string SeeOthersParam = "Control/See Others";
+
+        private static void ApplyWorldFeatures(StaffScannerComponent comp, FuryFullController fc)
         {
-            var contacts = EnsureContactsGroup(comp.transform);
+            var contacts = EnsureContactsGroup(fc, comp.gameObject, comp.transform);
             // Toggles must live on an always-active object; only the component is stripped, not its GameObject.
             var menuHost = comp.gameObject;
             var menuPath = comp.GetMenuPath();
+            
+            var paramz = ScriptableObject.CreateInstance<VRCExpressionParameters>();
 
+            paramz.parameters = new[]
+            {
+                new VRCExpressionParameters.Parameter
+                {
+                    name = BroadcastSelfParam,
+                    defaultValue = 1f,
+                    networkSynced = true,
+                    saved = true,
+                    valueType = VRCExpressionParameters.ValueType.Float
+                },
+                new VRCExpressionParameters.Parameter
+                {
+                    name = SeeOthersParam,
+                    defaultValue = 1f,
+                    networkSynced = false,
+                    saved = true,
+                    valueType = VRCExpressionParameters.ValueType.Float
+                }
+            };
+
+            fc.AddParams(paramz);
+            
             // Core contacts — always built.
             var receiver = BuildReceiver(contacts);
             receiver.GetComponent<VRCContactReceiver>().collisionTags.Add(LegacyContactTag);
-            AddMenuToggle(menuHost, menuPath, "Broadcast Self", receiver, saved: true, defaultOn: true);
+            AddToggle(fc, menuHost, menuPath, BroadcastSelfParam, "Broadcast Self", receiver);
 
             var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: true);
             presence.GetComponent<VRCContactSender>().collisionTags.Add(LegacyContactTag);
-            AddMenuToggle(menuHost, menuPath, "See Others", presence, saved: true, defaultOn: true);
+            AddToggle(fc, menuHost, menuPath, SeeOthersParam, "See Others", presence);
 
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
             // enabling it shows other scanners as spheres to you only.
@@ -400,6 +416,80 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
+        /// <summary>
+        /// Creates a toggle control that turns the target object on and off. 
+        /// </summary>
+        /// <param name="host"></param>
+        /// <param name="menuPath"></param>
+        /// <param name="target"></param>
+        private static void AddToggle(FuryFullController fc, GameObject fcObject, string menuPath, string paramName, string displayName, GameObject target)
+        {
+            var menu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
+
+            menu.controls = new List<VRCExpressionsMenu.Control>
+            {
+                new()
+                {
+                    name = displayName,
+                    parameter = new VRCExpressionsMenu.Control.Parameter
+                    {
+                        name = paramName
+                    },
+                    type = VRCExpressionsMenu.Control.ControlType.Toggle
+                }
+            };
+
+            var controller = new AnimatorController();
+
+            controller.AddParameter(paramName, AnimatorControllerParameterType.Float);
+
+            fc.AddController(controller);
+            fc.AddMenu(menu, menuPath);
+
+            var machine = new AnimatorStateMachine
+            {
+                name = "Toggle: " + displayName
+            };
+
+            var layer = new AnimatorControllerLayer
+            {
+                name = machine.name,
+                defaultWeight = 1f,
+                stateMachine = machine
+            };
+
+            controller.AddLayer(layer);
+            
+            var tree = new BlendTree
+            {
+                name = "Toggle " + displayName + " blend.",
+                blendType = BlendTreeType.Simple1D,
+                blendParameter = paramName
+            };
+
+            var offMotion = new AnimationClip
+            {
+                name = displayName + " - Off"
+            };
+            var onMotion = new AnimationClip
+            {
+                name = displayName + " - On"
+            };
+
+            var objectPath = target.transform.GetHierarchyPath(fcObject.transform);
+            var type = typeof(GameObject);
+            var propertyName = "m_IsActive";
+
+            offMotion.SetCurve(objectPath, type, propertyName, AnimationCurve.Constant(0, 1, 0));
+            onMotion.SetCurve(objectPath, type, propertyName, AnimationCurve.Constant(0, 1, 1));
+
+            tree.AddChild(offMotion);
+            tree.AddChild(onMotion);
+
+            var state = machine.AddState("Toggle");
+            state.motion = tree;
+        }
+
         // VRCFury menu Toggle that turns 'target' on while the item is on. holdButton = momentary Button.
         private static void AddMenuToggle(GameObject host, string menuPath, string itemName, GameObject target,
                                           bool saved = false, bool defaultOn = false, bool holdButton = false)
@@ -430,32 +520,86 @@ namespace ClubMaul.StaffScanner.Editor
 
         // Returns the world-locked "Contacts" group, creating it (with a world-origin VRCParentConstraint)
         // if the prefab no longer contains one.
-        private static Transform EnsureContactsGroup(Transform root)
+        private static Transform EnsureContactsGroup(FuryFullController fc, GameObject fcObject, Transform root)
         {
-            var existing = FindChildByName(root, "Contacts");
-            if (existing != null) return existing;
-
-            var go = new GameObject("Contacts");
-            go.transform.SetParent(root, false);
-
-            var anchorPath   = AssetDatabase.GUIDToAssetPath(WorldAnchorGuid);
-            var anchorPrefab = string.IsNullOrEmpty(anchorPath)
-                ? null
-                : AssetDatabase.LoadAssetAtPath<GameObject>(anchorPath);
-            if (anchorPrefab == null)
+            var contactTransform = FindChildByName(root, "Contacts");
+            if (contactTransform == null)
             {
-                Debug.LogWarning("[StaffScanner] World anchor (Misc/World.prefab) not found — generated " +
-                                 "Contacts will follow the avatar instead of being pinned to world origin.");
+                var contactObject = new GameObject("Contacts");
+                contactTransform = contactObject.transform;
+                
+                contactTransform.SetParent(root, false);
+                var anchorPath   = AssetDatabase.GUIDToAssetPath(WorldAnchorGuid);
+                var anchorPrefab = string.IsNullOrEmpty(anchorPath)
+                    ? null
+                    : AssetDatabase.LoadAssetAtPath<GameObject>(anchorPath);
+                if (anchorPrefab == null)
+                {
+                    Debug.LogWarning("[StaffScanner] World anchor (Misc/World.prefab) not found — generated " +
+                                     "Contacts will follow the avatar instead of being pinned to world origin.");
+                }
+                else
+                {
+                    var constraint = contactObject.AddComponent<VRCParentConstraint>();
+                    constraint.IsActive = true;
+                    constraint.Locked   = true;
+                    constraint.Sources.Add(new VRCConstraintSource(anchorPrefab.transform, 1f, Vector3.zero, Vector3.zero));
+                }
             }
-            else
-            {
-                var constraint = go.AddComponent<VRCParentConstraint>();
-                constraint.IsActive = true;
-                constraint.Locked   = true;
-                constraint.Sources.Add(new VRCConstraintSource(anchorPrefab.transform, 1f, Vector3.zero, Vector3.zero));
-            }
+            
+            // Leaving safe mode can cause the system to break – the contacts are overlapping, but the parameters
+            // don't change. This is fixed by briefly deactivating the Contacts object.
+            
+            contactTransform.gameObject.SetActive(false);
 
-            return go.transform;
+            var controller = new AnimatorController();
+
+            fc.AddController(controller);
+
+            var machine = new AnimatorStateMachine
+            {
+                name = "Delay"
+            };
+
+            var layer = new AnimatorControllerLayer
+            {
+                name = machine.name,
+                defaultWeight = 1f,
+                stateMachine = machine
+            };
+
+            controller.AddLayer(layer);
+            
+            var startState = machine.AddState("Start");
+            var steadyState = machine.AddState("Steady");
+
+            var startMotion = new AnimationClip
+            {
+                name = "Delay Start"
+            };
+
+            var steadyMotion = new AnimationClip
+            {
+                name = "Delay Over"
+            };
+
+            startState.motion = startMotion;
+            steadyState.motion = steadyMotion;
+
+            var path = contactTransform.GetHierarchyPath(fcObject.transform);
+            var type = typeof(GameObject);
+            var property = "m_IsActive";
+
+            startMotion.SetCurve(path, type, property, AnimationCurve.Constant(0, 0.5f, 0));
+            steadyMotion.SetCurve(path, type, property, AnimationCurve.Constant(0, 1, 1));
+
+            var transition = startState.AddTransition(steadyState);
+            
+            transition.hasExitTime = true;
+            transition.exitTime = 1f;
+            transition.duration = 0f;
+
+            return contactTransform;
         }
 
         private static Transform FindChildByName(Transform root, string name)
@@ -519,7 +663,7 @@ namespace ClubMaul.StaffScanner.Editor
             return go;
         }
 
-        private static AnimatorController BuildAnimatorController(GameObject avatarRoot, List<GameObject> meshTargets, List<GameObject> sphereTargets)
+        private static AnimatorController BuildMeshAnimatorController(GameObject avatarRoot, List<GameObject> meshTargets, List<GameObject> sphereTargets)
         {
             bool hasSphere = sphereTargets != null && sphereTargets.Count > 0;
 
