@@ -209,6 +209,11 @@ namespace ClubMaul.StaffScanner.Editor
 
         private const string BroadcastSelfParam = "Control/Broadcast Self";
         private const string SeeOthersParam = "Control/See Others";
+        private const string SphereViewParam = "Control/Sphere View";
+
+        private const string BroadcastSelfIconGuid = "c578ba13c73ea4dada1bce0fbf4a25f0";
+        private const string SeeOthersIconGuid = "5e30e278d35d14e84b3baa0cbe880a6e";
+        private const string SphereViewIconGuid = "1b82ff7ec69444f819af2116eead5d26";
 
         private static void ApplyWorldFeatures(StaffScannerComponent comp, FuryFullController fc)
         {
@@ -236,6 +241,14 @@ namespace ClubMaul.StaffScanner.Editor
                     networkSynced = false,
                     saved = true,
                     valueType = VRCExpressionParameters.ValueType.Float
+                },
+                new VRCExpressionParameters.Parameter
+                {
+                    name = SphereViewParam,
+                    defaultValue = 0f,
+                    networkSynced = false,
+                    saved = true,
+                    valueType = VRCExpressionParameters.ValueType.Float
                 }
             };
 
@@ -244,16 +257,23 @@ namespace ClubMaul.StaffScanner.Editor
             // Core contacts — always built.
             var receiver = BuildReceiver(contacts);
             receiver.GetComponent<VRCContactReceiver>().collisionTags.Add(LegacyContactTag);
-            AddToggle(fc, menuHost, menuPath, BroadcastSelfParam, "Broadcast Self", receiver);
+            var broadcastSelfIcon = LoadAssetByGUID<Texture2D>(BroadcastSelfIconGuid);
+            
+            AddToggle(fc, menuHost, menuPath, BroadcastSelfParam, "Broadcast Self", receiver, broadcastSelfIcon);
 
             var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: true);
             presence.GetComponent<VRCContactSender>().collisionTags.Add(LegacyContactTag);
-            AddToggle(fc, menuHost, menuPath, SeeOthersParam, "See Others", presence);
+            var seeOthersIcon = LoadAssetByGUID<Texture2D>(SeeOthersIconGuid);
+            
+            AddToggle(fc, menuHost, menuPath, SeeOthersParam, "See Others", presence, seeOthersIcon);
 
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
             // enabling it shows other scanners as spheres to you only.
             var sphereSender = BuildSender(contacts, "SphereViewSender", SphereTag, localOnly: true);
-            AddMenuToggle(menuHost, menuPath, "Sphere View", sphereSender, saved: true);
+            var sphereViewIcon = LoadAssetByGUID<Texture2D>(SphereViewIconGuid);
+            
+            AddToggle(fc, menuHost, menuPath, SphereViewParam, "Sphere View", sphereSender, sphereViewIcon);
+            
             BuildSphereReceiver(contacts);
 
             // Optional world features — Beast role only.
@@ -422,7 +442,7 @@ namespace ClubMaul.StaffScanner.Editor
         /// <param name="host"></param>
         /// <param name="menuPath"></param>
         /// <param name="target"></param>
-        private static void AddToggle(FuryFullController fc, GameObject fcObject, string menuPath, string paramName, string displayName, GameObject target)
+        private static void AddToggle(FuryFullController fc, GameObject fcObject, string menuPath, string paramName, string displayName, GameObject target, Texture2D icon = null)
         {
             var menu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
 
@@ -435,7 +455,8 @@ namespace ClubMaul.StaffScanner.Editor
                     {
                         name = paramName
                     },
-                    type = VRCExpressionsMenu.Control.ControlType.Toggle
+                    type = VRCExpressionsMenu.Control.ControlType.Toggle,
+                    icon = icon
                 }
             };
 
@@ -813,6 +834,11 @@ namespace ClubMaul.StaffScanner.Editor
             return AssetDatabase.LoadAssetAtPath<Mesh>(path) ?? mesh;
         }
 
+        private static T LoadAssetByGUID<T>(string guid) where T : UnityEngine.Object
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            return AssetDatabase.LoadAssetAtPath<T>(path);
+        }
         // Creates each missing path segment (CreateFolder only makes one level at a time).
         private static void EnsureTempFolder()
         {

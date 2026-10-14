@@ -7,6 +7,7 @@ All notable changes to this package are documented here. This project adheres to
 ### Added
 
 - A custom shader that replaces the old Poiyomi Toon-based outline.
+- Icons for some menu toggles.
 
 ### changed
 
