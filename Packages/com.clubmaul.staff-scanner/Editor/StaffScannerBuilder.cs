@@ -213,6 +213,8 @@ namespace ClubMaul.StaffScanner.Editor
             }
 
             material.color = color;
+
+            PersistObject(ref material, "Scanner Material");
             return material;
         }
 
@@ -627,6 +629,31 @@ namespace ClubMaul.StaffScanner.Editor
             }
             path.Reverse();
             return string.Join("/", path);
+        }
+
+        /// <summary>
+        /// Creates an asset out of an existing object and reassigns the argument to
+        /// refer to the asset.
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="sourceName"></param>
+        /// <typeparam name="T"></typeparam>
+        private static void PersistObject<T>(ref T obj, string sourceName) where T : UnityEngine.Object
+        {
+            EnsureTempFolder();
+            string safe = SanitizeFileName(sourceName);
+            string path = AssetDatabase.GenerateUniqueAssetPath($"{TempFolder}/{safe}.asset");
+            AssetDatabase.CreateAsset(obj, path);
+            // Flush to disk before VRChat snapshots build dependencies, else the bundle ships an
+            // empty mesh (visible in-editor, invisible in-game).
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            var persisted = AssetDatabase.LoadAssetAtPath<T>(path);
+
+            if (persisted)
+                obj = persisted;
+            else
+                Debug.LogWarning("Failed to persist " + sourceName + ".");
         }
 
         private static Mesh PersistMesh(Mesh mesh, string sourceName)
