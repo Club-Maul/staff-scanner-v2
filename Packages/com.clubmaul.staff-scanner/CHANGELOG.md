@@ -2,14 +2,14 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [2.0.5-rc.1]
 
 ### Added
 
 - A custom shader that replaces the old Poiyomi Toon-based outline.
 - Icons for some menu toggles.
 
-### changed
+### Changed
 
 - The outline now appears at a much longer range when not occluded.
 
