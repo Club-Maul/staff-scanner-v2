@@ -2,7 +2,7 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.5-rc.1]
+## [2.0.5]
 
 ### Added
 
