@@ -4,11 +4,16 @@ All notable changes to this package are documented here. This project adheres to
 
 ## Unreleased
 
+### Added
+
+- A 'see self' toggle that turns on your own outline
+
 ### Changed
 
 - The outline now appears even if IsLocal is true
   - This indicates that someone's scanner is malfunctioning.
   - Having the outline turn on will make it more obvious that something is wrong.
+
 ## [2.0.5] - 2026-10-16
 
 ### Added

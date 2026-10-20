@@ -25,6 +25,7 @@ namespace ClubMaul.StaffScanner.Editor
     {
         private const string ShowParam  = "ClubMaul/Scanner/Show";
         private const string LocalParam = "IsLocal";      // VRChat built-in; true only on the wearer's own client.
+        private const string ShowSelfParam = "Control/Show Self"; // Makes your own outline appear.
         private const string SphereParam = "Internal/Sphere Mode";    // Non-synced (per-viewer); see BuildSphereReceiver.
         private const float  SphereSize  = 0.3f; // sphere diameter in world meters (armature scale divided out)
 
@@ -249,6 +250,14 @@ namespace ClubMaul.StaffScanner.Editor
                     networkSynced = false,
                     saved = true,
                     valueType = VRCExpressionParameters.ValueType.Float
+                },
+                new VRCExpressionParameters.Parameter
+                {
+                    name = ShowSelfParam,
+                    defaultValue = 0f,
+                    networkSynced = false,
+                    saved = true,
+                    valueType = VRCExpressionParameters.ValueType.Bool
                 }
             };
 
@@ -273,6 +282,8 @@ namespace ClubMaul.StaffScanner.Editor
             var sphereViewIcon = LoadAssetByGUID<Texture2D>(SphereViewIconGuid);
             
             AddToggle(fc, menuHost, menuPath, SphereViewParam, "Sphere View", sphereSender, sphereViewIcon);
+
+            AddToggle(fc, menuHost, menuPath, ShowSelfParam, "Show Own Outline", null, null);
             
             BuildSphereReceiver(contacts);
 
@@ -460,12 +471,16 @@ namespace ClubMaul.StaffScanner.Editor
                 }
             };
 
+            fc.AddMenu(menu, menuPath);
+
+            if (!target)
+                return;
+            
             var controller = new AnimatorController();
 
             controller.AddParameter(paramName, AnimatorControllerParameterType.Float);
 
             fc.AddController(controller);
-            fc.AddMenu(menu, menuPath);
 
             var machine = new AnimatorStateMachine
             {
@@ -691,7 +706,9 @@ namespace ClubMaul.StaffScanner.Editor
             var controller = new AnimatorController { name = "StaffScanner_FX" };
             controller.AddParameter(ShowParam, AnimatorControllerParameterType.Bool);
             controller.AddParameter(LocalParam, AnimatorControllerParameterType.Bool);
+            controller.AddParameter(ShowSelfParam, AnimatorControllerParameterType.Bool);
             if (hasSphere) controller.AddParameter(SphereParam, AnimatorControllerParameterType.Bool);
+            controller.AddParameter(SphereViewParam, AnimatorControllerParameterType.Bool);
 
             // Full mesh: shown when scanning and not the wearer. Suppressed in sphere mode (if available).
             BuildShowLayer(controller, "StaffScannerMesh", avatarRoot, meshTargets,
@@ -730,21 +747,45 @@ namespace ClubMaul.StaffScanner.Editor
             toOn.hasExitTime = false;
             toOn.duration    = 0f;
             toOn.AddCondition(AnimatorConditionMode.If,    0, ShowParam);
+            toOn.AddCondition(AnimatorConditionMode.IfNot, 0, ShowSelfParam);
             if (sphereMode.HasValue)
+            {
                 toOn.AddCondition(sphereMode.Value ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0, SphereParam);
+            }
+                
 
-            // Leave "On" if any single gate fails (separate transitions == OR).
-            AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, ShowParam);
+            toOn = offState.AddTransition(onState);
+            toOn.hasExitTime = false;
+            toOn.duration = 0f;
+            toOn.AddCondition(AnimatorConditionMode.If, 0, ShowSelfParam);
+            
+            // this uses the control parameter, not the contact parameter
             if (sphereMode.HasValue)
-                AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereParam);
+                toOn.AddCondition(sphereMode.Value ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0,
+                    SphereViewParam);
+
+            var toOff = AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, ShowParam);
+            toOff.AddCondition(AnimatorConditionMode.IfNot, 0, ShowSelfParam);
+
+            if (sphereMode.HasValue)
+            {
+                toOff = AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereParam);
+                toOff.AddCondition(AnimatorConditionMode.IfNot, 0, ShowSelfParam);
+                
+                toOff = AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereViewParam);
+                toOff.AddCondition(AnimatorConditionMode.If, 0, ShowSelfParam);
+            }
+                
         }
 
-        private static void AddOffTransition(AnimatorState from, AnimatorState to, AnimatorConditionMode mode, string param)
+        private static AnimatorStateTransition AddOffTransition(AnimatorState from, AnimatorState to, AnimatorConditionMode mode, string param)
         {
             var t = from.AddTransition(to);
             t.hasExitTime = false;
             t.duration    = 0f;
             t.AddCondition(mode, 0, param);
+
+            return t;
         }
 
         private static AnimationClip BuildToggleClip(string name, GameObject avatarRoot, List<GameObject> targets, bool active)
