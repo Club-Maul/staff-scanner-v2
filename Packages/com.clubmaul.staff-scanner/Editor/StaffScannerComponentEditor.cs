@@ -119,7 +119,10 @@ namespace ClubMaul.StaffScanner.Editor
                 var mesh = smr.sharedMesh;
                 if (mesh == null) continue;
                 for (int s = 0; s < mesh.subMeshCount; s++) before += (int)(mesh.GetIndexCount(s) / 3);
-                var dec = MeshDecimator.Decimate(mesh, amount);
+
+                var simplifier = new UnityMeshSimplifier.MeshSimplifier(mesh);
+                simplifier.SimplifyMesh(1 - amount);
+                var dec = simplifier.ToMesh();
                 after += (int)(dec.GetIndexCount(0) / 3);
                 DestroyImmediate(dec);
             }

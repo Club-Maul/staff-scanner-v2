@@ -647,13 +647,16 @@ namespace ClubMaul.StaffScanner.Editor
 
         private static GameObject BuildOne(StaffScannerComponent comp, SkinnedMeshRenderer source, Material material, bool appendSourceName)
         {
+            
             if (source.sharedMesh == null)
             {
                 Debug.LogWarning($"[StaffScanner] Source renderer '{source.name}' has no mesh. Skipping.");
                 return null;
             }
 
-            var decimated  = MeshDecimator.Decimate(source.sharedMesh, comp.DecimationAmount);
+            var simplifier = new UnityMeshSimplifier.MeshSimplifier(source.sharedMesh);
+            simplifier.SimplifyMesh(1 - comp.DecimationAmount);
+            var decimated = simplifier.ToMesh();
             Debug.Log($"[StaffScanner] Decimated '{source.sharedMesh.name}' " +
                       $"from {source.sharedMesh.vertexCount} verts → {decimated.vertexCount} verts " +
                       $"(slider {comp.DecimationAmount:F2}).");

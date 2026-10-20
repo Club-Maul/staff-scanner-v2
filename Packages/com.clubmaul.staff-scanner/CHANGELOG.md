@@ -7,6 +7,8 @@ All notable changes to this package are documented here. This project adheres to
 ### Added
 
 - A 'see self' toggle that turns on your own outline
+- UnityMeshSimplfiier-based decimation, which replaces the original decimation algorithm
+  - This produces less blocky, more accurate decimation
 
 ### Changed
 
