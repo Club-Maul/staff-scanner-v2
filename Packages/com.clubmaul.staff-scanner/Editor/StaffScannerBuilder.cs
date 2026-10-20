@@ -215,6 +215,7 @@ namespace ClubMaul.StaffScanner.Editor
         private const string BroadcastSelfIconGuid = "c578ba13c73ea4dada1bce0fbf4a25f0";
         private const string SeeOthersIconGuid = "5e30e278d35d14e84b3baa0cbe880a6e";
         private const string SphereViewIconGuid = "1b82ff7ec69444f819af2116eead5d26";
+        private const string SeeSelfIconGuid = "a2e676d2f764c4d63adb72b0abb25746";
 
         private static void ApplyWorldFeatures(StaffScannerComponent comp, FuryFullController fc)
         {
@@ -268,22 +269,24 @@ namespace ClubMaul.StaffScanner.Editor
             receiver.GetComponent<VRCContactReceiver>().collisionTags.Add(LegacyContactTag);
             var broadcastSelfIcon = LoadAssetByGUID<Texture2D>(BroadcastSelfIconGuid);
             
-            AddToggle(fc, menuHost, menuPath, BroadcastSelfParam, "Broadcast Self", receiver, broadcastSelfIcon);
+            AddToggle(fc, menuHost, menuPath, BroadcastSelfParam, "Broadcast\nSelf", receiver, broadcastSelfIcon);
 
             var presence = BuildSender(contacts, "Sender", ContactTag, localOnly: true);
             presence.GetComponent<VRCContactSender>().collisionTags.Add(LegacyContactTag);
             var seeOthersIcon = LoadAssetByGUID<Texture2D>(SeeOthersIconGuid);
             
-            AddToggle(fc, menuHost, menuPath, SeeOthersParam, "See Others", presence, seeOthersIcon);
+            AddToggle(fc, menuHost, menuPath, SeeOthersParam, "See\nOthers", presence, seeOthersIcon);
 
             // Sphere View — viewer-side: a local-only sender + always-on receiver (non-synced param) so
             // enabling it shows other scanners as spheres to you only.
             var sphereSender = BuildSender(contacts, "SphereViewSender", SphereTag, localOnly: true);
             var sphereViewIcon = LoadAssetByGUID<Texture2D>(SphereViewIconGuid);
             
-            AddToggle(fc, menuHost, menuPath, SphereViewParam, "Sphere View", sphereSender, sphereViewIcon);
+            AddToggle(fc, menuHost, menuPath, SphereViewParam, "Sphere\nView", sphereSender, sphereViewIcon);
 
-            AddToggle(fc, menuHost, menuPath, ShowSelfParam, "Show Own Outline", null, null);
+            var seeSelfIcon = LoadAssetByGUID<Texture2D>(SeeSelfIconGuid);
+
+            AddToggle(fc, menuHost, menuPath, ShowSelfParam, "Show Own\nOutline", null, seeSelfIcon);
             
             BuildSphereReceiver(contacts);
 

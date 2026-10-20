@@ -15,6 +15,7 @@ All notable changes to this package are documented here. This project adheres to
 - The outline now appears even if IsLocal is true
   - This indicates that someone's scanner is malfunctioning.
   - Having the outline turn on will make it more obvious that something is wrong.
+- Improved formatting of menu labels and adjusted colors on menu icons
 
 ## [2.0.5] - 2026-10-16
 
