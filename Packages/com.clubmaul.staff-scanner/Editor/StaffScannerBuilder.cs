@@ -67,7 +67,7 @@ namespace ClubMaul.StaffScanner.Editor
 
         private static void Process(GameObject avatarRoot, StaffScannerComponent comp)
         {
-            FuryFullController fc = FuryComponents.CreateFullController(comp.gameObject);
+            FuryFullController fc = FuryComponents.CreateFullController(avatarRoot);
 
             // This parameter is exposed to other systems. For example, a hunter avatar could
             // react to it by turning off its post-processing effects.
@@ -76,8 +76,16 @@ namespace ClubMaul.StaffScanner.Editor
             // World features are independent of the scanner mesh, so apply them first —
             // before any early-out below can skip the rest of the build.
             ApplyWorldFeatures(comp, fc);
-            
-            var material = ResolveRoleMaterial(comp.Role);
+
+            var defaultRole = comp.DefaultRole;
+            var material = ResolveRoleMaterial(defaultRole);
+
+            var roleMaterials = new List<Material>();
+
+            foreach (var role in comp.roles)
+            {
+                roleMaterials.Add(ResolveRoleMaterial(role));
+            }
             
             if (material == null)
             {
@@ -116,10 +124,24 @@ namespace ClubMaul.StaffScanner.Editor
 
             // Default-off avoids a one-frame flash on load before the FX layer settles.
             foreach (var go in generated) go.SetActive(false);
-
+            
             var meshController = BuildMeshAnimatorController(avatarRoot, generated, sphereTargets);
 
             fc.AddController(meshController, VRCAvatarDescriptor.AnimLayerType.FX);
+
+            // If we have multiple roles, we need to add animations that switch the materials out.
+            // Otherwise, we can just use the default material.
+            if (roleMaterials.Count > 1)
+            {
+                var targetRenderers = new List<Renderer>();
+                
+                targetRenderers.AddRange(generated.Select(current => current.GetComponent<Renderer>()));
+                targetRenderers.AddRange(sphereTargets.Select(current => current.GetComponent<Renderer>()));
+                
+                AddMaterialControls(fc, avatarRoot.transform, comp.MenuPath, targetRenderers, roleMaterials,
+                    comp.roles);
+            }
+
         }
 
         // Non-skinned sphere on the humanoid Hips with the scanner material. Default-off; null if non-humanoid.
@@ -782,6 +804,116 @@ namespace ClubMaul.StaffScanner.Editor
                 toOff.AddCondition(AnimatorConditionMode.If, 0, ShowSelfParam);
             }
                 
+        }
+
+        private const string RoleControlParam = "Control/Role";
+
+        private static void AddMaterialControls(FuryFullController fc, Transform fcRoot, string menuPath, List<Renderer> renderers, List<Material> materials, List<StaffRole> roles)
+        {
+            var controller = new AnimatorController();
+            fc.AddController(controller);
+
+            controller.AddParameter(RoleControlParam, AnimatorControllerParameterType.Float);
+
+            var menu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
+            fc.AddMenu(menu, menuPath + "/" + "Roles");
+
+            var paramz = ScriptableObject.CreateInstance<VRCExpressionParameters>();
+            fc.AddParams(paramz);
+
+            // If there are only two roles, then we can get away with a bool parameter.
+            // Once VRC adds variable-width parameters, we should make use of them here!
+            paramz.parameters = new[]
+            {
+                new VRCExpressionParameters.Parameter
+                {
+                    name = RoleControlParam,
+                    defaultValue = 0f,
+                    networkSynced = true,
+                    saved = true,
+                    valueType = roles.Count == 2 ? VRCExpressionParameters.ValueType.Bool : VRCExpressionParameters.ValueType.Int
+                }
+            };
+
+            menu.Parameters = paramz;
+            menu.controls = new();
+
+            int roleIndex = 0;
+            
+            foreach (var role in roles)
+            {
+                menu.controls.Add(new()
+                {
+                    name = Enum.GetName(typeof(StaffRole), role),
+                    parameter = new VRCExpressionsMenu.Control.Parameter
+                    {
+                        name = RoleControlParam
+                    },
+                    type = VRCExpressionsMenu.Control.ControlType.Toggle,
+                    value = roleIndex
+                });
+                    
+                ++roleIndex;
+            }
+
+            var machine = new AnimatorStateMachine
+            {
+                name = "Material Control"
+            };
+
+            var layer = new AnimatorControllerLayer
+            {
+                name = machine.name,
+                defaultWeight = 1f,
+                stateMachine = machine
+            };
+
+            controller.AddLayer(layer);
+
+            var tree = new BlendTree
+            {
+                name = "Role Select Tree",
+                blendParameter = RoleControlParam,
+                blendType = BlendTreeType.Simple1D,
+                useAutomaticThresholds = false
+            };
+
+            var state = machine.AddState("Role Select");
+            state.motion = tree;
+
+            for (int idx = 0; idx < roles.Count; ++idx)
+            {
+                var role = roles[idx];
+                string roleName = Enum.GetName(typeof(StaffRole), role);
+
+                var motion = new AnimationClip()
+                {
+                    name = "Role: " + roleName
+                };
+                
+                foreach (var renderer in renderers)
+                {
+                    Debug.Log(renderer);
+                    var path = renderer.transform.GetHierarchyPath(fcRoot);
+                    var type = renderer.GetType();
+                    var curveBinding = new EditorCurveBinding
+                    {
+                        type = type,
+                        path = path,
+                        propertyName = "m_Materials.Array.data[0]"
+                    };
+
+                    var keyframe = new ObjectReferenceKeyframe
+                    {
+                        value = materials[idx],
+                        time = 0f
+                    };
+                    
+                    AnimationUtility.SetObjectReferenceCurve(motion, curveBinding, new[] { keyframe });
+                }
+
+                tree.AddChild(motion, idx);
+            }
         }
 
         private static AnimatorStateTransition AddOffTransition(AnimatorState from, AnimatorState to, AnimatorConditionMode mode, string param)

@@ -26,7 +26,29 @@ namespace ClubMaul.StaffScanner
 
         [Tooltip("Which role's material is applied to the scanner mesh. The material is resolved by the " +
                  "build-time generator, so the component needs no material wiring.")]
+        [HideInInspector]
         public StaffRole Role = StaffRole.Beast;
+
+        [Tooltip("A list of roles that you can display. If you select more than one role, a menu will be created to switch between them.")]
+        public List<StaffRole> roles = new();
+
+        /// <summary>
+        /// In case a migration hasn't happened yet, or in case the user decides to delete all of the roles,
+        /// we'll still have a valid 'default role'
+        /// </summary>
+        public StaffRole DefaultRole
+        {
+            get
+            {
+                if (roles.Count > 0)
+                {
+                    return roles[0];
+                }
+
+                return Role;
+            }
+        }
+        [HideInInspector] public bool roleMigrated = false;
 
         [Tooltip("Decimation strength: 0 = less decimation (more triangles), 1 = more decimation (fewer triangles).")]
         [Range(0f, 1f)]
@@ -76,5 +98,14 @@ namespace ClubMaul.StaffScanner
         /// <summary>Menu path the toggles are written under, falling back to the default if blank.</summary>
         public string GetMenuPath() =>
             string.IsNullOrWhiteSpace(MenuPath) ? "Staff Scanner V2" : MenuPath.Trim().Trim('/');
+
+        void Reset()
+        {
+            roleMigrated = true;
+            roles = new()
+            {
+                StaffRole.Beast
+            };
+        }
     }
 }

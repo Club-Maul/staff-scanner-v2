@@ -51,6 +51,20 @@ namespace ClubMaul.StaffScanner.Editor
                     EditorGUILayout.PropertyField(serializedObject.FindProperty(name));
             }
 
+            var roleMigratedProperty = serializedObject.FindProperty(nameof(StaffScannerComponent.roleMigrated));
+
+            if (!roleMigratedProperty.boolValue)
+            {
+                var roleProperty = serializedObject.FindProperty(nameof(StaffScannerComponent.Role));
+                var roleListProperty = serializedObject.FindProperty(nameof(StaffScannerComponent.roles));
+
+                roleListProperty.ClearArray();
+                roleListProperty.InsertArrayElementAtIndex(0);
+                roleListProperty.GetArrayElementAtIndex(0).enumValueIndex = roleProperty.enumValueIndex;
+
+                roleMigratedProperty.boolValue = true;
+            }
+            
             serializedObject.ApplyModifiedProperties();
         }
 
