@@ -730,13 +730,11 @@ namespace ClubMaul.StaffScanner.Editor
             toOn.hasExitTime = false;
             toOn.duration    = 0f;
             toOn.AddCondition(AnimatorConditionMode.If,    0, ShowParam);
-            toOn.AddCondition(AnimatorConditionMode.IfNot, 0, LocalParam);
             if (sphereMode.HasValue)
                 toOn.AddCondition(sphereMode.Value ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0, SphereParam);
 
             // Leave "On" if any single gate fails (separate transitions == OR).
             AddOffTransition(onState, offState, AnimatorConditionMode.IfNot, ShowParam);
-            AddOffTransition(onState, offState, AnimatorConditionMode.If,    LocalParam);
             if (sphereMode.HasValue)
                 AddOffTransition(onState, offState, sphereMode.Value ? AnimatorConditionMode.IfNot : AnimatorConditionMode.If, SphereParam);
         }

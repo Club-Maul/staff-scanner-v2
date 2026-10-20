@@ -2,7 +2,14 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.5]
+## Unreleased
+
+### Changed
+
+- The outline now appears even if IsLocal is true
+  - This indicates that someone's scanner is malfunctioning.
+  - Having the outline turn on will make it more obvious that something is wrong.
+## [2.0.5] - 2026-10-16
 
 ### Added
 
