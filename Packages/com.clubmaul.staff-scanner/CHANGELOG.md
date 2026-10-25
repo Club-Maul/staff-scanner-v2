@@ -2,7 +2,7 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [2.1.0-rc.1] - 2026-10-25
 
 ### Added
 
