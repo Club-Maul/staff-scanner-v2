@@ -11,7 +11,8 @@ namespace ClubMaul.StaffScanner
         Beast,
         Security,
         Photography,
-        Host
+        Host,
+        Trial
     }
 
     [DisallowMultipleComponent]

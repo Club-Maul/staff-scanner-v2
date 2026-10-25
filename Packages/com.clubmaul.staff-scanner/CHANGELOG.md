@@ -11,6 +11,7 @@ All notable changes to this package are documented here. This project adheres to
   - This produces less blocky, more accurate decimation
 - Support for multiple roles.
   - If you select more than one role, a sub-menu will be created to pick your current role.
+- A "Trial" role, with an orange color
 
 ### Changed
 

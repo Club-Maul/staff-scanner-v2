@@ -202,10 +202,11 @@ namespace ClubMaul.StaffScanner.Editor
 
         private static readonly Dictionary<StaffRole, Color> RoleColorMap = new()
         {
-            { StaffRole.Beast,       Color.red }, // Materials/StaffScannerBeast.mat
-            { StaffRole.Security,    Color.blue }, // Materials/StaffScannerSecurity.mat
-            { StaffRole.Photography, new Color(0, 0.6f, 0f) }, // Materials/StaffScannerPhotography.mat
-            { StaffRole.Host,        new Color(1, 0.5f, 1f) }, // Materials/StaffScannerHost.mat
+            { StaffRole.Beast,       Color.red },
+            { StaffRole.Security,    Color.blue },
+            { StaffRole.Photography, new Color(0, 0.6f, 0f) },
+            { StaffRole.Host,        new Color(1, 0.5f, 1f) },
+            { StaffRole.Trial,       new Color(1, 0.3f, 0f) }
         };
 
         // Loads the role's material from its GUID. Null (with a warning) if the GUID can't be resolved.
