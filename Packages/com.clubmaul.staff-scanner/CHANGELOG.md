@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented here. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- The scanner was failing to work at all.
+  - The Full Controller was moved from the Staff Scanner component to the avatar root
+  - Animations were still being recorded relative to the Staff Scanner component
+
 ## [2.1.0-rc.1] - 2026-10-25
 
 ### Added

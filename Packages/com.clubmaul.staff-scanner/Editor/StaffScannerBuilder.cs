@@ -75,7 +75,7 @@ namespace ClubMaul.StaffScanner.Editor
             
             // World features are independent of the scanner mesh, so apply them first —
             // before any early-out below can skip the rest of the build.
-            ApplyWorldFeatures(comp, fc);
+            ApplyWorldFeatures(comp, avatarRoot.transform, fc);
 
             var defaultRole = comp.DefaultRole;
             var material = ResolveRoleMaterial(defaultRole);
@@ -240,11 +240,11 @@ namespace ClubMaul.StaffScanner.Editor
         private const string SphereViewIconGuid = "1b82ff7ec69444f819af2116eead5d26";
         private const string SeeSelfIconGuid = "a2e676d2f764c4d63adb72b0abb25746";
 
-        private static void ApplyWorldFeatures(StaffScannerComponent comp, FuryFullController fc)
+        private static void ApplyWorldFeatures(StaffScannerComponent comp, Transform avatarRoot, FuryFullController fc)
         {
-            var contacts = EnsureContactsGroup(fc, comp.gameObject, comp.transform);
+            var contacts = EnsureContactsGroup(fc, avatarRoot, comp.transform);
             // Toggles must live on an always-active object; only the component is stripped, not its GameObject.
-            var menuHost = comp.gameObject;
+            var menuHost = avatarRoot.gameObject;
             var menuPath = comp.GetMenuPath();
             
             var paramz = ScriptableObject.CreateInstance<VRCExpressionParameters>();
@@ -582,7 +582,7 @@ namespace ClubMaul.StaffScanner.Editor
 
         // Returns the world-locked "Contacts" group, creating it (with a world-origin VRCParentConstraint)
         // if the prefab no longer contains one.
-        private static Transform EnsureContactsGroup(FuryFullController fc, GameObject fcObject, Transform root)
+        private static Transform EnsureContactsGroup(FuryFullController fc, Transform fcTransform, Transform root)
         {
             var contactTransform = FindChildByName(root, "Contacts");
             if (contactTransform == null)
@@ -648,7 +648,7 @@ namespace ClubMaul.StaffScanner.Editor
             startState.motion = startMotion;
             steadyState.motion = steadyMotion;
 
-            var path = contactTransform.GetHierarchyPath(fcObject.transform);
+            var path = contactTransform.GetHierarchyPath(fcTransform);
             var type = typeof(GameObject);
             var property = "m_IsActive";
 
