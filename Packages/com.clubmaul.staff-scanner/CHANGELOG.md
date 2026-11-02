@@ -4,7 +4,7 @@ All notable changes to this package are documented here. This project adheres to
 
 ## Unreleased
 
-### Fixed
+### [2.1.0-rc.2] - 2026-11-01
 
 - The scanner was failing to work at all.
   - The Full Controller was moved from the Staff Scanner component to the avatar root
